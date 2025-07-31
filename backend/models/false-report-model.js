@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+
 const IncidentReportSchema = new mongoose.Schema({
   incidentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Incident', required: true },
   reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

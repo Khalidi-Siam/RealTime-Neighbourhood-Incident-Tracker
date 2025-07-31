@@ -11,15 +11,20 @@ const validate = (schema) => async (req, res, next) => {
                 field: issue.path.join('.'),
                 message: issue.message
             }));
-            errorMessage = errorMessages[0].message;
+            const status = 400;
+            const error = {
+                status,
+                message : errorMessages
+            }
             
-            return res.status(400).json({
-                errors: errorMessages
-            });
+            next(error);
         }
-        return res.status(400).json({
+        const status = 400;
+        const error = {
+            status,
             message: 'Invalid request data',
-        });
+        }
+        next(error);        
     }
 }
 

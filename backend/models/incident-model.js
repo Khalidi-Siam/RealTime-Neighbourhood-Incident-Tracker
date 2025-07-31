@@ -8,7 +8,7 @@ const incidentSchema = new mongoose.Schema({
     lat: { type: Number },
     lng: { type: Number }
   },
-  image: { type: String }, // image URL or path
+  // image: { type: String }, // image URL or path
   category: { type: String, enum: ['Crime', 'Accident', 'Lost', 'Utility', 'Other'], required: true },
   timestamp: { type: Date, default: Date.now },
   submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
