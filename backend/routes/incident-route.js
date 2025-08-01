@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { createIncident, getAllIncidents, getIncidentById } = require('../controllers/incident-controller');
+const { createIncident, getAllIncidents, getIncidentById, deleteIncident } = require('../controllers/incident-controller');
 const { authenticateToken, authorizeRoles, optionalAuthentication } = require('../middlewares/auth-middleware');
 const { createIncidentSchema, getIncidentParamsSchema } = require('../validators/incident-validator');
 const validate = require('../middlewares/validate-middleware');
@@ -23,6 +23,7 @@ const validateParams = require('../middlewares/validate-params-middleware');
 router.post('/submit', authenticateToken, validate(createIncidentSchema), createIncident);
 router.get('/', optionalAuthentication, getAllIncidents);
 router.get('/:id', optionalAuthentication, validateParams(getIncidentParamsSchema), getIncidentById);
+router.delete('/:id', authenticateToken, authorizeRoles('admin'), validateParams(getIncidentParamsSchema), deleteIncident);
 // router.post('/submit', verifyToken, upload.single('image'), createIncident);
 
 module.exports = router;

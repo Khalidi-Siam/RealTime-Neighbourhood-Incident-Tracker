@@ -1,5 +1,7 @@
 const Incident = require('../models/incident-model');
 const Vote = require('../models/vote-model');
+const Comment = require('../models/comment-model');
+const IncidentReport = require('../models/false-report-model');
 // const path = require('path');
 
 const createIncident = async (req, res) => {
@@ -153,9 +155,42 @@ const getIncidentById = async (req, res) => {
   }
 };
 
+const deleteIncident = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find the incident
+    const incident = await Incident.findById(id);
+    if (!incident) {
+      return res.status(404).json({ message: 'Incident not found' });
+    }
+
+    // Delete all related data
+    await Promise.all([
+      // Delete all comments for this incident
+      Comment.deleteMany({ incident: id }),
+      // Delete all votes for this incident
+      Vote.deleteMany({ incident: id }),
+      // Delete all false reports for this incident
+      IncidentReport.deleteMany({ incidentId: id }),
+      // Delete the incident itself
+      Incident.findByIdAndDelete(id)
+    ]);
+
+    res.status(200).json({ 
+      message: 'Incident and all related data deleted successfully' 
+    });
+
+  } catch (error) {
+    console.error('Error deleting incident:', error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+};
+
 
 module.exports = {
     createIncident,
     getAllIncidents,
-    getIncidentById
+    getIncidentById,
+    deleteIncident
 };
