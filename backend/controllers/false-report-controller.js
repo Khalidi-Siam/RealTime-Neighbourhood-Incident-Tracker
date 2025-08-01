@@ -95,7 +95,71 @@ const getUserReportOnIncident = async (req, res) => {
     }
 };
 
+// Admin accepts a false report
+const acceptFalseReport = async (req, res) => {
+    try {
+        const { incidentId } = req.params;
+
+        // Find the incident
+        const incident = await Incident.findById(incidentId);
+        if (!incident) {
+            return res.status(404).json({ message: 'Incident not found' });
+        }
+
+        // Update incident flags
+        incident.falseFlagVerified = true;
+        incident.isFalseFlagged = false;
+        await incident.save();
+
+        res.status(200).json({ 
+            message: 'False report accepted successfully',
+            incident: {
+                id: incident._id,
+                falseFlagVerified: incident.falseFlagVerified,
+                isFalseFlagged: incident.isFalseFlagged
+            }
+        });
+
+    } catch (error) {
+        console.error('Error accepting false report:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// Admin rejects a false report
+const rejectFalseReport = async (req, res) => {
+    try {
+        const { incidentId } = req.params;
+
+        // Find the incident
+        const incident = await Incident.findById(incidentId);
+        if (!incident) {
+            return res.status(404).json({ message: 'Incident not found' });
+        }
+
+        // Update incident flags
+        incident.falseFlagVerified = false;
+        incident.isFalseFlagged = false;
+        await incident.save();
+
+        res.status(200).json({ 
+            message: 'False report rejected successfully',
+            incident: {
+                id: incident._id,
+                falseFlagVerified: incident.falseFlagVerified,
+                isFalseFlagged: incident.isFalseFlagged
+            }
+        });
+
+    } catch (error) {
+        console.error('Error rejecting false report:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 module.exports = {
     createFalseReport,
-    getUserReportOnIncident
+    getUserReportOnIncident,
+    acceptFalseReport,
+    rejectFalseReport
 };
