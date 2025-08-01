@@ -10,6 +10,7 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/auth-route'));
 app.use('/api/incidents', require('./routes/incident-route'));
 app.use('/api/incidents', require('./routes/incident-comment-route'));
+app.use('/api/incidents', require('./routes/vote-route'));
 app.use('/api/comment', require('./routes/comment-route'));
 
 // app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

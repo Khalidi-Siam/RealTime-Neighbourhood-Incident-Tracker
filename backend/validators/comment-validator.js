@@ -14,7 +14,21 @@ const updateCommentSchema = z.object({
         .max(500, { message: 'Comment must not exceed 500 characters' })
 });
 
+const commentParamsSchema = z.object({
+    id: z
+        .string({ required_error: "Comment ID is required" })
+        .regex(/^[0-9a-fA-F]{24}$/, { message: "Invalid comment ID format" })
+});
+
+const incidentCommentParamsSchema = z.object({
+    incidentId: z
+        .string({ required_error: "Incident ID is required" })
+        .regex(/^[0-9a-fA-F]{24}$/, { message: "Invalid incident ID format" })
+});
+
 module.exports = {
     createCommentSchema,
-    updateCommentSchema
+    updateCommentSchema,
+    commentParamsSchema,
+    incidentCommentParamsSchema
 };

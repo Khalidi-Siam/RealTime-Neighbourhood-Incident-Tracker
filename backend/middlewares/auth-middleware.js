@@ -51,7 +51,39 @@ const authorizeRoles = (...roles) => {
     };
 };
 
+const optionalAuthentication = async (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            // No token provided, continue without authentication
+            req.user = null;
+            return next();
+        }
+
+        const token = authHeader.substring(7); // Remove "Bearer " prefix
+        
+        const decoded = verifyToken(token);
+        
+        // Get user information and attach to request
+        const user = await User.findById(decoded.userId).select('-password');
+        if (!user) {
+            // Invalid user, continue without authentication
+            req.user = null;
+            return next();
+        }
+
+        req.user = user;
+        next();
+    } catch (error) {
+        // Token verification failed, continue without authentication
+        req.user = null;
+        next();
+    }
+};
+
 module.exports = {
     authenticateToken,
-    authorizeRoles
+    authorizeRoles,
+    optionalAuthentication
 };

@@ -28,6 +28,13 @@ const createIncidentSchema = z.object({
         })
 });
 
+const getIncidentParamsSchema = z.object({
+    id: z
+        .string({ required_error: "Incident ID is required" })
+        .regex(/^[0-9a-fA-F]{24}$/, { message: "Invalid incident ID format" })
+});
+
 module.exports = {
-    createIncidentSchema
+    createIncidentSchema,
+    getIncidentParamsSchema
 };
