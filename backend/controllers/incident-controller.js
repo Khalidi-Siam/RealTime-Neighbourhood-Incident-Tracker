@@ -35,7 +35,8 @@ const createIncident = async (req, res) => {
 
 const getAllIncidents = async (req, res) => {
   try {
-    const { page = 1, limit = 10, category, sortBy = 'timestamp' } = req.query;
+    console.log('GET /api/incidents called with query:', JSON.stringify(req.query, null, 2));
+    const { page = 1, limit = 10, category, sortBy = 'timestamp', order = -1 } = req.query;
     const skip = (page - 1) * limit;
 
     // Build query filter
@@ -44,14 +45,19 @@ const getAllIncidents = async (req, res) => {
       filter.category = category;
     }
 
-    // Get incidents with pagination
-    const incidents = await Incident.find(filter)
-      .populate('submittedBy', 'username email')
-      .sort({ [sortBy]: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    // Verify models
+    if (!Incident || !Vote) {
+      throw new Error('Incident or Vote model not defined');
+    }
 
-    // Get vote counts for each incident
+    // Get incidents with pagination
+    let incidents = await Incident.find(filter)
+      .populate('submittedBy', 'username email')
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    // Get vote counts and sort if needed
     const incidentsWithVotes = await Promise.all(incidents.map(async (incident) => {
       const upvotes = await Vote.countDocuments({ 
         incident: incident._id, 
@@ -62,7 +68,6 @@ const getAllIncidents = async (req, res) => {
         voteType: 'downvote' 
       });
 
-      // Get user's vote if authenticated
       let userVote = null;
       if (req.user) {
         const vote = await Vote.findOne({ 
@@ -73,7 +78,8 @@ const getAllIncidents = async (req, res) => {
       }
 
       return {
-        ...incident.toObject(),
+        ...incident,
+        id: incident._id.toString(),
         votes: {
           upvotes,
           downvotes,
@@ -83,9 +89,19 @@ const getAllIncidents = async (req, res) => {
       };
     }));
 
+    // Sort incidents
+    const sortOrder = parseInt(order);
+    if (sortBy === 'votes.total') {
+      incidentsWithVotes.sort((a, b) => sortOrder * (b.votes.total - a.votes.total));
+    } else if (sortBy === 'timestampAsc') {
+      incidentsWithVotes.sort((a, b) => sortOrder * (new Date(a.timestamp) - new Date(b.timestamp)));
+    } else {
+      incidentsWithVotes.sort((a, b) => sortOrder * (new Date(b.timestamp) - new Date(a.timestamp)));
+    }
+
     const total = await Incident.countDocuments(filter);
 
-    res.status(200).json({
+    const response = {
       message: 'Incidents retrieved successfully',
       incidents: incidentsWithVotes,
       pagination: {
@@ -95,13 +111,16 @@ const getAllIncidents = async (req, res) => {
         hasNext: page * limit < total,
         hasPrev: page > 1
       }
-    });
+    };
 
+    console.log('Sending response:', JSON.stringify(response, null, 2));
+    res.status(200).json(response);
   } catch (error) {
-    console.error('Error fetching incidents:', error);
-    res.status(500).json({ message: 'Server Error' });
+    console.error('Error fetching incidents:', JSON.stringify(error, null, 2));
+    res.status(500).json({ message: error.message || 'Server Error' });
   }
 };
+
 
 const getIncidentById = async (req, res) => {
   try {

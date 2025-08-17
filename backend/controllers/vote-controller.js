@@ -19,25 +19,22 @@ const voteIncident = async (req, res) => {
             user: userId 
         });
 
+        let action, currentVote = null, previousVote = null;
+
         if (existingVote) {
             // If same vote type, remove the vote (toggle off)
             if (existingVote.voteType === voteType) {
                 await Vote.findByIdAndDelete(existingVote._id);
-                return res.status(200).json({ 
-                    message: 'Vote removed successfully',
-                    action: 'removed',
-                    previousVote: existingVote.voteType
-                });
+                action = 'removed';
+                previousVote = existingVote.voteType;
+                currentVote = null;
             } else {
                 // Update to new vote type
+                previousVote = existingVote.voteType;
                 existingVote.voteType = voteType;
                 await existingVote.save();
-                return res.status(200).json({ 
-                    message: 'Vote updated successfully',
-                    action: 'updated',
-                    previousVote: existingVote.voteType === 'upvote' ? 'downvote' : 'upvote',
-                    currentVote: voteType
-                });
+                action = 'updated';
+                currentVote = voteType;
             }
         } else {
             // Create new vote
@@ -48,12 +45,38 @@ const voteIncident = async (req, res) => {
             });
 
             await newVote.save();
-            return res.status(201).json({ 
-                message: 'Vote added successfully',
-                action: 'added',
-                currentVote: voteType
-            });
+            action = 'added';
+            currentVote = voteType;
         }
+
+        // Get updated vote counts
+        const upvotes = await Vote.countDocuments({ 
+            incident: incidentId, 
+            voteType: 'upvote' 
+        });
+        
+        const downvotes = await Vote.countDocuments({ 
+            incident: incidentId, 
+            voteType: 'downvote' 
+        });
+
+        const responseData = {
+            message: `Vote ${action} successfully`,
+            action,
+            currentVote,
+            votes: {
+                upvotes,
+                downvotes,
+                total: upvotes + downvotes,
+                userVote: currentVote
+            }
+        };
+
+        if (previousVote) {
+            responseData.previousVote = previousVote;
+        }
+
+        res.status(action === 'added' ? 201 : 200).json(responseData);
 
     } catch (error) {
         console.error('Error voting on incident:', error);
