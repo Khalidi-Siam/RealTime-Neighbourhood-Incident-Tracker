@@ -1,16 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import IncidentCard from '../components/IncidentCard.jsx';
+import useInfiniteScroll from '../hooks/useInfiniteScroll.jsx';
 
 function Feed() {
   const [incidents, setIncidents] = useState([]);
   const [error, setError] = useState('');
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalIncidents: 0,
-    hasNext: false,
-    hasPrev: false,
-  });
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const [filters, setFilters] = useState({
     sortBy: 'timestamp',
     order: -1,
@@ -26,57 +24,76 @@ function Feed() {
       [name]: value,
       ...(name === 'sortBy' && { order: value === 'timestamp' ? -1 : value === 'votes.total' ? -1 : 1 }),
     }));
-    setPagination(prev => ({ ...prev, currentPage: 1 })); // Reset to page 1 on filter change
+    // Reset will be handled by useEffect
   };
 
-  const handlePageChange = (newPage) => {
-    setPagination(prev => ({ ...prev, currentPage: newPage }));
+  // Fetch incidents function
+  const fetchIncidents = async (pageNum = 1, append = false) => {
+    if (pageNum === 1) setInitialLoading(true);
+    setLoading(true);
+    setError('');
+    
+    try {
+      const token = localStorage.getItem('token');
+      const query = new URLSearchParams({
+        page: pageNum,
+        limit: 10,
+        category: filters.category,
+        sortBy: filters.sortBy,
+        order: filters.order,
+      }).toString();
+      
+      const response = await fetch(`http://localhost:3000/api/incidents?${query}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`HTTP ${response.status}: ${text.slice(0, 100)}`);
+      }
+
+      const data = await response.json();
+      if (!data.incidents || !data.pagination) {
+        throw new Error('Invalid response format: incidents or pagination missing');
+      }
+      
+      // Append or replace incidents based on append flag
+      if (append && pageNum > 1) {
+        setIncidents(prev => [...prev, ...data.incidents]);
+      } else {
+        setIncidents(data.incidents);
+      }
+      
+      setHasNextPage(data.pagination.hasNext);
+      setError('');
+    } catch (err) {
+      const errorMessage = err.message || 'Failed to load incidents';
+      setError(errorMessage);
+      console.error('Fetch error:', errorMessage);
+    } finally {
+      setLoading(false);
+      if (pageNum === 1) setInitialLoading(false);
+    }
   };
+
+  // Fetch more incidents for infinite scroll
+  const fetchMoreIncidents = useCallback(async () => {
+    if (!hasNextPage || loading) return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    await fetchIncidents(nextPage, true);
+  }, [hasNextPage, loading, page, filters]);
+
+  // Infinite scroll hook
+  const [lastElementRef, isFetching] = useInfiniteScroll(fetchMoreIncidents, hasNextPage);
 
   useEffect(() => {
-    console.log('Fetching incidents with filters:', filters, 'page:', pagination.currentPage);
-    const fetchIncidents = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const query = new URLSearchParams({
-          page: pagination.currentPage,
-          limit: 10,
-          category: filters.category,
-          sortBy: filters.sortBy,
-          order: filters.order,
-        }).toString();
-        const response = await fetch(`http://localhost:3000/api/incidents?${query}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
-        });
-        console.log('Fetch response status:', response.status);
-        console.log('Fetch response headers:', [...response.headers.entries()]);
-
-        if (!response.ok) {
-          const text = await response.text();
-          console.log('Non-JSON response:', text.slice(0, 100));
-          throw new Error(`HTTP ${response.status}: ${text.slice(0, 100)}`);
-        }
-
-        const data = await response.json();
-        console.log('Fetched data:', data);
-        if (!data.incidents || !data.pagination) {
-          throw new Error('Invalid response format: incidents or pagination missing');
-        }
-        setIncidents(data.incidents);
-        setPagination(data.pagination);
-        setError('');
-      } catch (err) {
-        const errorMessage = err.message || 'Failed to load incidents';
-        setError(errorMessage);
-        console.error('Fetch error:', errorMessage);
-      }
-    };
-
-    fetchIncidents();
-  }, [filters.sortBy, filters.order, filters.category, pagination.currentPage]);
+    setPage(1);
+    fetchIncidents(1, false);
+  }, [filters.sortBy, filters.order, filters.category]);
 
   return (
     <div className="container">
@@ -105,39 +122,32 @@ function Feed() {
       </div>
       <div className="feed-content">
         {error && <div className="error-message">{error}</div>}
-        {incidents.length === 0 && !error ? (
+        {initialLoading && <div className="loading">Loading...</div>}
+        {incidents.length === 0 && !error && !initialLoading ? (
           <p className="feed__empty">No incidents to display</p>
         ) : (
-          incidents.map((incident) => (
-            <IncidentCard
-              key={incident.id || incident._id}
-              incident={incident}
-              onClick={() => console.log('Incident clicked:', incident.id || incident._id)}
-              isSelected={false}
-            />
-          ))
+          <>
+            {incidents.map((incident, index) => {
+              // Add ref to the last element for infinite scroll detection
+              const isLast = index === incidents.length - 1;
+              return (
+                <IncidentCard
+                  key={incident.id || incident._id}
+                  incident={incident}
+                  onClick={() => console.log('Incident clicked:', incident.id || incident._id)}
+                  isSelected={false}
+                  ref={isLast ? lastElementRef : null}
+                />
+              );
+            })}
+            {/* Loading indicator for infinite scroll */}
+            {(loading && !initialLoading) && (
+              <div className="loading" style={{ textAlign: 'center', padding: '1rem' }}>
+                Loading more incidents...
+              </div>
+            )}
+          </>
         )}
-        
-        {/* Pagination */}
-        <div className="feed__pagination">
-          <button
-            className="btn btn--primary"
-            onClick={() => handlePageChange(pagination.currentPage - 1)}
-            disabled={!pagination.hasPrev}
-          >
-            Previous
-          </button>
-          <span className="feed__pagination-info">
-            Page {pagination.currentPage} of {pagination.totalPages}
-          </span>
-          <button
-            className="btn btn--primary"
-            onClick={() => handlePageChange(pagination.currentPage + 1)}
-            disabled={!pagination.hasNext}
-          >
-            Next
-          </button>
-        </div>
       </div>
     </div>
   );

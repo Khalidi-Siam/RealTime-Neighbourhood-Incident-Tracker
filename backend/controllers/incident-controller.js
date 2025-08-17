@@ -6,7 +6,7 @@ const IncidentReport = require('../models/false-report-model');
 
 const createIncident = async (req, res) => {
   try {
-    const { title, description, address, lat, lng, category } = req.body;
+    const { title, description, address, lat, lng, category, severity } = req.body;
     const userId = req.user.id;
 
     // const image = req.file ? `/uploads/${req.file.filename}` : null;
@@ -20,6 +20,7 @@ const createIncident = async (req, res) => {
         lng: parseFloat(lng)
       },
       category,
+      severity: severity || 'Medium', // Default to Medium if not provided
       // image,
       submittedBy: userId
     });
@@ -80,6 +81,7 @@ const getAllIncidents = async (req, res) => {
       return {
         ...incident,
         id: incident._id.toString(),
+        severity: incident.severity || 'Medium', // Ensure severity is always present
         votes: {
           upvotes,
           downvotes,
@@ -155,6 +157,7 @@ const getIncidentById = async (req, res) => {
 
     const incidentWithVotes = {
       ...incident.toObject(),
+      severity: incident.severity || 'Medium', // Ensure severity is always present
       votes: {
         upvotes,
         downvotes,

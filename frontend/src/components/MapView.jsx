@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker } from 'react-leaflet';
 import { AuthContext } from '../context/AuthContext.jsx';
 import 'leaflet/dist/leaflet.css';
@@ -40,32 +40,58 @@ function MapView({ selectedIncident, onMarkerClick }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [mapStyle, setMapStyle] = useState('streets'); // dark, satellite, streets
-  const [mapCenter, setMapCenter] = useState([23.8103, 90.4125]); // Default to Dhaka, Bangladesh
-  const [mapZoom, setMapZoom] = useState(13);
-  const [locationLoading, setLocationLoading] = useState(true);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const locationRequestedRef = useRef(false); // Track when user explicitly requests location
 
-  // Get user's current location
+  // Get user's current location (always ask for permission)
   const getCurrentLocation = () => {
     setLocationLoading(true);
+    locationRequestedRef.current = true; // Mark that user explicitly requested location
     
     if (!navigator.geolocation) {
       console.log('Geolocation is not supported by this browser.');
+      showLocationError('Geolocation is not supported by this browser. Showing Dhaka area.');
       setLocationLoading(false);
+      
+      // Center to Dhaka when geolocation not supported
+      if (window.mapInstance) {
+        window.mapInstance.setView([23.8103, 90.4125], 13, {
+          animate: true,
+          duration: 1.5
+        });
+      }
       return;
     }
 
+    // Always ask for permission - no cached position
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        setMapCenter([latitude, longitude]);
-        setMapZoom(15); // Zoom in closer when we have user's location
         setLocationLoading(false);
         console.log('Location found:', latitude, longitude);
+        
+        // Center map to user location
+        if (window.mapInstance) {
+          window.mapInstance.setView([latitude, longitude], 15, {
+            animate: true,
+            duration: 1.5
+          });
+        }
+        
+        // Show success notification
+        showLocationSuccess('Location found successfully!');
       },
       (error) => {
         console.log('Error getting location:', error.message);
-        // Keep default Dhaka location
         setLocationLoading(false);
+        
+        // Always return to Dhaka view on error
+        if (window.mapInstance) {
+          window.mapInstance.setView([23.8103, 90.4125], 13, {
+            animate: true,
+            duration: 1.5
+          });
+        }
         
         // Show user-friendly message based on error type
         let locationError = '';
@@ -84,24 +110,42 @@ function MapView({ selectedIncident, onMarkerClick }) {
             break;
         }
         
-        // Show temporary notification
-        const notification = document.createElement('div');
-        notification.className = 'location-notification';
-        notification.textContent = locationError;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-          if (notification.parentNode) {
-            notification.parentNode.removeChild(notification);
-          }
-        }, 4000);
+        showLocationError(locationError);
       },
       {
         enableHighAccuracy: true,
         timeout: 10000, // 10 seconds timeout
-        maximumAge: 300000 // 5 minutes cache
+        maximumAge: 0 // Always get fresh location, no cache
       }
     );
+  };
+
+  // Show location success notification
+  const showLocationSuccess = (message) => {
+    const notification = document.createElement('div');
+    notification.className = 'location-notification location-notification--success';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 3000);
+  };
+
+  // Show location error notification  
+  const showLocationError = (message) => {
+    const notification = document.createElement('div');
+    notification.className = 'location-notification location-notification--error';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 4000);
   };
 
   // Get tile layer configuration based on style
@@ -159,10 +203,7 @@ function MapView({ selectedIncident, onMarkerClick }) {
   };
 
   useEffect(() => {
-    // Get user's location first
-    getCurrentLocation();
-    
-    // Then fetch incidents
+    // Only fetch incidents on component mount, don't get user location automatically
     fetchIncidents();
 
     const handleIncidentUpdate = () => {
@@ -173,26 +214,16 @@ function MapView({ selectedIncident, onMarkerClick }) {
     return () => window.removeEventListener('incidentCreated', handleIncidentUpdate);
   }, []);
 
-  // Component to handle map centering and marker highlighting
-  function MapController({ selectedIncident, mapCenter, mapZoom }) {
+  // Component to handle incident centering only
+  function MapController({ selectedIncident }) {
     const map = useMap();
 
     useEffect(() => {
-      // Store map instance globally for zoom controls
+      // Store map instance globally for zoom controls and location centering
       window.mapInstance = map;
     }, [map]);
-
-    // Handle initial map centering
-    useEffect(() => {
-      if (mapCenter && mapCenter[0] && mapCenter[1]) {
-        map.setView(mapCenter, mapZoom, {
-          animate: true,
-          duration: 1.5
-        });
-      }
-    }, [mapCenter, mapZoom, map]);
     
-    // Handle selected incident centering
+    // Handle selected incident centering (only when incident is selected, not when cleared)
     useEffect(() => {
       if (selectedIncident && selectedIncident.location.lat && selectedIncident.location.lng) {
         map.flyTo([selectedIncident.location.lat, selectedIncident.location.lng], 15, {
@@ -200,6 +231,7 @@ function MapView({ selectedIncident, onMarkerClick }) {
           easeLinearity: 0.25
         });
       }
+      // Don't do anything when selectedIncident becomes null - stay at current location
     }, [selectedIncident, map]);
 
     return null;
@@ -288,12 +320,11 @@ function MapView({ selectedIncident, onMarkerClick }) {
       </div>
 
       <MapContainer
-        center={mapCenter}
-        zoom={mapZoom}
+        center={[23.8103, 90.4125]} // Always start with Dhaka, let MapController handle centering
+        zoom={13}
         style={{ height: '100%', width: '100%' }}
         className={`custom-map ${mapStyle}`}
         zoomControl={false}
-        key={`${mapCenter[0]}-${mapCenter[1]}`} // Force re-render when center changes
       >
         <TileLayer
           key={mapStyle} // Force re-render when style changes
@@ -341,8 +372,6 @@ function MapView({ selectedIncident, onMarkerClick }) {
           ))}
         <MapController 
           selectedIncident={selectedIncident} 
-          mapCenter={mapCenter}
-          mapZoom={mapZoom}
         />
       </MapContainer>
     </div>

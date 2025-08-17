@@ -1,11 +1,28 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, forwardRef } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import CommentList from './CommentList.jsx';
 import CommentForm from './CommentForm.jsx';
 import { toast } from 'react-toastify';
 
-function IncidentCard({ incident, onSelect, isSelected }) {
+// Category colors and icons mapping
+const categoryConfig = {
+  'Crime': { color: '#e53e3e', icon: '🚨' },
+  'Accident': { color: '#d69e2e', icon: '🚦' },
+  'Lost': { color: '#38a169', icon: '🔍' },
+  'Utility': { color: '#3182ce', icon: '⚡' },
+  'Other': { color: '#6b7280', icon: '📝' },
+  'Safety': { color: '#e53e3e', icon: '🚨' },
+  'Infrastructure': { color: '#4a5568', icon: '🏗️' },
+  'Utilities': { color: '#3182ce', icon: '⚡' },
+  'Traffic': { color: '#d69e2e', icon: '🚦' },
+  'Animal': { color: '#38a169', icon: '🐕' },
+  'Environment': { color: '#00b894', icon: '🌱' },
+  'Noise': { color: '#a855f7', icon: '🔊' }
+};
+
+const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
   const { currentUser, token } = useContext(AuthContext);
+  
   const [votes, setVotes] = useState({
     upvotes: incident.votes.upvotes || 0,
     downvotes: incident.votes.downvotes || 0,
@@ -13,6 +30,13 @@ function IncidentCard({ incident, onSelect, isSelected }) {
   });
   const [showComments, setShowComments] = useState(false);
   const [error, setError] = useState('');
+
+  // Get category configuration
+  const getCategoryConfig = (category) => {
+    return categoryConfig[category] || categoryConfig['Other'];
+  };
+
+  const categoryInfo = getCategoryConfig(incident.category);
 
   const handleVote = async (voteType) => {
     if (!currentUser || !token) {
@@ -91,23 +115,39 @@ function IncidentCard({ incident, onSelect, isSelected }) {
   };
 
   return (
-    <div className={`incident-card ${isSelected ? 'incident-card--selected' : ''}`}>
+    <div ref={ref} className={`incident-card ${isSelected ? 'incident-card--selected' : ''}`}>
       <div className="incident-card__header">
-        <h3>{incident.title}</h3>
-        <div className="incident-card__meta">
-          <span className="incident-card__category">{incident.category}</span>
-          <span className={`incident-card__severity incident-card__severity--${incident.severity}`}>
+        <span 
+          className="incident-card__category" 
+          style={{
+            backgroundColor: `${categoryInfo.color}20`,
+            color: categoryInfo.color,
+            borderColor: `${categoryInfo.color}40`
+          }}
+        >
+          {categoryInfo.icon} {incident.category}
+        </span>
+        {incident.severity && (
+          <span className={`incident-card__severity incident-card__severity--${incident.severity.toLowerCase()}`}>
             {incident.severity}
           </span>
-        </div>
+        )}
+        {!incident.severity && (
+          <span className="incident-card__severity incident-card__severity--medium">
+            Medium
+          </span>
+        )}
       </div>
-      <div className="incident-card__body">
-        <p>{incident.description}</p>
-        <div className="incident-card__location">
+      <h4 className="incident-card__title">{incident.title}</h4>
+      <div className="incident-card__description">
+        {incident.description}
+      </div>
+      <div className="incident-card__stats">
+        <div className="incident-card__stat">
           <span role="img" aria-label="Location">📍</span>
           {incident.location.address || 'Location not specified'}
         </div>
-        <div className="incident-card__reported">
+        <div className="incident-card__time">
           Reported by {incident.submittedBy?.username || 'Anonymous'} on{' '}
           {new Date(incident.timestamp).toLocaleDateString()}
         </div>
@@ -152,6 +192,8 @@ function IncidentCard({ incident, onSelect, isSelected }) {
       )}
     </div>
   );
-}
+});
+
+IncidentCard.displayName = 'IncidentCard';
 
 export default IncidentCard;

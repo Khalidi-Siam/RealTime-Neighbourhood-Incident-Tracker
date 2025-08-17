@@ -25,7 +25,11 @@ const createIncidentSchema = z.object({
         .enum(['Crime', 'Accident', 'Lost', 'Utility', 'Other'], {
             required_error: "Category is required",
             invalid_type_error: "Category must be one of: Crime, Accident, Lost, Utility, Other"
-        })
+        }),
+    severity: z
+        .enum(['Low', 'Medium', 'High'], {
+            invalid_type_error: "Severity must be one of: Low, Medium, High"
+        }).optional()
 });
 
 const getIncidentParamsSchema = z.object({

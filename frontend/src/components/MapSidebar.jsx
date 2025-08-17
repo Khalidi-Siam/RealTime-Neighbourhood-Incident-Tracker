@@ -1,6 +1,7 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import IncidentCard from './IncidentCard.jsx';
+import useInfiniteScroll from '../hooks/useInfiniteScroll.jsx';
 
 function MapSidebar({ onIncidentSelect, selectedIncident }) {
   const { currentUser } = useContext(AuthContext);
@@ -8,33 +9,21 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [severityFilter, setSeverityFilter] = useState('All');
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalIncidents: 0,
-    hasNext: false,
-    hasPrev: false,
-  });
+  const [hasNextPage, setHasNextPage] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Map votes to severity (placeholder logic since severity isn't in backend schema)
-  const mapVotesToSeverity = (incident) => {
-    const totalVotes = incident.votes.upvotes + incident.votes.downvotes;
-    if (totalVotes > 20) return 'High';
-    if (totalVotes > 10) return 'Medium';
-    return 'Low';
-  };
-
   // Fetch incidents from backend
-  const fetchIncidents = async (pageNum = 1, category = 'All') => {
+  const fetchIncidents = async (pageNum = 1, category = 'All', append = false) => {
+    if (pageNum === 1) setInitialLoading(true);
     setLoading(true);
     setError('');
     try {
       const token = localStorage.getItem('token');
       const query = new URLSearchParams({
         page: pageNum,
-        limit: 10,
+        limit: 5,
         category: category === 'All' ? '' : category,
       }).toString();
       
@@ -50,32 +39,46 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
         throw new Error(data.message || 'Failed to fetch incidents');
       }
 
-      // Add severity to incidents (client-side for now)
-      const incidentsWithSeverity = data.incidents.map((incident) => ({
-        ...incident,
-        severity: mapVotesToSeverity(incident),
-      }));
-
-      setIncidents(incidentsWithSeverity);
-      setPagination(data.pagination);
+      // Append or replace incidents based on append flag
+      if (append && pageNum > 1) {
+        setIncidents(prev => [...prev, ...data.incidents]);
+      } else {
+        setIncidents(data.incidents);
+      }
+      
+      setHasNextPage(data.pagination.hasNext);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+      if (pageNum === 1) setInitialLoading(false);
     }
   };
 
-  // Initial fetch and refetch on category/page change or incident create/delete
+  // Fetch more incidents for infinite scroll
+  const fetchMoreIncidents = useCallback(async () => {
+    if (!hasNextPage || loading) return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    await fetchIncidents(nextPage, categoryFilter, true);
+  }, [hasNextPage, loading, page, categoryFilter]);
+
+  // Infinite scroll hook
+  const [lastElementRef, isFetching] = useInfiniteScroll(fetchMoreIncidents, hasNextPage);
+
+  // Initial fetch and refetch on category change or incident create/delete
   useEffect(() => {
-    fetchIncidents(page, categoryFilter);
+    setPage(1);
+    fetchIncidents(1, categoryFilter, false);
 
     const handleIncidentUpdate = () => {
-      fetchIncidents(page, categoryFilter);
+      setPage(1);
+      fetchIncidents(1, categoryFilter, false);
     };
 
     window.addEventListener('incidentCreated', handleIncidentUpdate);
     return () => window.removeEventListener('incidentCreated', handleIncidentUpdate);
-  }, [page, categoryFilter]);
+  }, [categoryFilter]);
 
   // Filter incidents by severity (client-side)
   const filteredIncidents = severityFilter === 'All'
@@ -85,24 +88,11 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
   // Handle filter changes
   const handleCategoryChange = (e) => {
     setCategoryFilter(e.target.value);
-    setPage(1); // Reset to first page on category change
+    // Reset will be handled by useEffect
   };
 
   const handleSeverityChange = (e) => {
     setSeverityFilter(e.target.value);
-  };
-
-  // Handle pagination
-  const handleNextPage = () => {
-    if (pagination.hasNext) {
-      setPage((prev) => prev + 1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (pagination.hasPrev) {
-      setPage((prev) => prev - 1);
-    }
   };
 
   return (
@@ -135,42 +125,32 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
         </div>
       </div>
       <div className="map-sidebar__content">
-        {loading && <div className="loading">Loading...</div>}
+        {initialLoading && <div className="loading">Loading...</div>}
         {error && <div className="alert alert--error">{error}</div>}
         {filteredIncidents.length > 0 ? (
-          filteredIncidents.map((incident) => (
-            <IncidentCard
-              key={incident._id}
-              incident={incident}
-              onSelect={() => onIncidentSelect(incident)}
-              isSelected={selectedIncident && selectedIncident._id === incident._id}
-            />
-          ))
+          <>
+            {filteredIncidents.map((incident, index) => {
+              // Add ref to the last element for infinite scroll detection
+              const isLast = index === filteredIncidents.length - 1;
+              return (
+                <IncidentCard
+                  key={incident._id}
+                  incident={incident}
+                  onSelect={() => onIncidentSelect(incident)}
+                  isSelected={selectedIncident && selectedIncident._id === incident._id}
+                  ref={isLast ? lastElementRef : null}
+                />
+              );
+            })}
+            {/* Loading indicator for infinite scroll */}
+            {(loading && !initialLoading) && (
+              <div className="loading" style={{ textAlign: 'center', padding: '1rem' }}>
+                Loading more incidents...
+              </div>
+            )}
+          </>
         ) : (
-          !loading && <p>No incidents found</p>
-        )}
-        
-        {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className="map-sidebar__pagination">
-            <button
-              className="btn btn--secondary btn--sm"
-              onClick={handlePrevPage}
-              disabled={!pagination.hasPrev}
-            >
-              Previous
-            </button>
-            <span>
-              Page {pagination.currentPage} of {pagination.totalPages}
-            </span>
-            <button
-              className="btn btn--secondary btn--sm"
-              onClick={handleNextPage}
-              disabled={!pagination.hasNext}
-            >
-              Next
-            </button>
-          </div>
+          !initialLoading && <p>No incidents found</p>
         )}
       </div>
     </div>

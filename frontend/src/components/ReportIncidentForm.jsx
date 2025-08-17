@@ -91,6 +91,7 @@ function ReportIncidentForm({ onClose }) {
           lat: formData.lat ? formData.lat.toString() : undefined,
           lng: formData.lng ? formData.lng.toString() : undefined,
           category: formData.category,
+          severity: formData.severity || 'Medium',
         }),
       });
       
