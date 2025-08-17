@@ -41,6 +41,7 @@ function MapView({ selectedIncident, onMarkerClick }) {
   const [error, setError] = useState('');
   const [mapStyle, setMapStyle] = useState('streets'); // dark, satellite, streets
   const [locationLoading, setLocationLoading] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null); // Track which menu is open
   const locationRequestedRef = useRef(false); // Track when user explicitly requests location
 
   // Get user's current location (always ask for permission)
@@ -184,14 +185,10 @@ function MapView({ selectedIncident, onMarkerClick }) {
         throw new Error(data.message || 'Failed to fetch incidents');
       }
 
-      // Add severity to incidents (client-side for now)
+      // Use severity from database, fallback to Medium if not provided
       const incidentsWithSeverity = data.incidents.map((incident) => ({
         ...incident,
-        severity: (incident.votes.upvotes + incident.votes.downvotes) > 20
-          ? 'High'
-          : (incident.votes.upvotes + incident.votes.downvotes) > 10
-          ? 'Medium'
-          : 'Low',
+        severity: incident.severity || 'Medium', // Use database severity or default to Medium
       }));
 
       setIncidents(incidentsWithSeverity);
@@ -202,6 +199,67 @@ function MapView({ selectedIncident, onMarkerClick }) {
     }
   };
 
+  // Delete incident function
+  const handleDeleteIncident = async (incidentId) => {
+    if (!window.confirm('Are you sure you want to delete this incident? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3000/api/incidents/${incidentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to delete incident');
+      }
+
+      // Refresh incidents list
+      fetchIncidents();
+      setOpenMenuId(null);
+      
+      // Show success message
+      alert('Incident deleted successfully');
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  // Handle report to admin (placeholder for now)
+  const handleReportToAdmin = (incidentId) => {
+    alert('Report to admin feature will be implemented soon.');
+    setOpenMenuId(null);
+  };
+
+  // Check if user can delete incident (admin or owner)
+  const canDeleteIncident = (incident) => {
+    if (!currentUser) {
+      console.log('No current user');
+      return false;
+    }
+    console.log('Current user:', currentUser);
+    console.log('Incident submittedBy:', incident.submittedBy);
+    console.log('Can delete:', currentUser.role === 'admin' || incident.submittedBy._id === currentUser.id);
+    return currentUser.role === 'admin' || incident.submittedBy._id === currentUser.id;
+  };
+
+  // Check if user can report incident (user role only)
+  const canReportIncident = (incident) => {
+    if (!currentUser) {
+      console.log('No current user for report');
+      return false;
+    }
+    console.log('Can report:', currentUser.role === 'user');
+    return currentUser.role === 'user';
+  };
+
   useEffect(() => {
     // Only fetch incidents on component mount, don't get user location automatically
     fetchIncidents();
@@ -210,8 +268,20 @@ function MapView({ selectedIncident, onMarkerClick }) {
       fetchIncidents();
     };
 
+    // Close menu when clicking outside
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.popup-menu')) {
+        setOpenMenuId(null);
+      }
+    };
+
     window.addEventListener('incidentCreated', handleIncidentUpdate);
-    return () => window.removeEventListener('incidentCreated', handleIncidentUpdate);
+    document.addEventListener('click', handleClickOutside);
+    
+    return () => {
+      window.removeEventListener('incidentCreated', handleIncidentUpdate);
+      document.removeEventListener('click', handleClickOutside);
+    };
   }, []);
 
   // Component to handle incident centering only
@@ -346,10 +416,63 @@ function MapView({ selectedIncident, onMarkerClick }) {
               <Popup className="custom-popup">
                 <div className="popup-content">
                   <div className="popup-header">
-                    <h3>{incident.title}</h3>
-                    <span className={`severity-badge ${incident.severity.toLowerCase()}`}>
-                      {incident.severity}
-                    </span>
+                    <div className="popup-header-left">
+                      <h3>{incident.title}</h3>
+                      <span className={`severity-badge ${incident.severity.toLowerCase()}`}>
+                        {incident.severity}
+                      </span>
+                    </div>
+                    {/* 3-dot menu */}
+                    {currentUser ? (
+                      <div className="popup-menu">
+                        <button 
+                          className="menu-trigger"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuId(openMenuId === incident._id ? null : incident._id);
+                          }}
+                          aria-label="More options"
+                        >
+                          ⋮
+                        </button>
+                        {openMenuId === incident._id && (
+                          <div className="menu-dropdown">
+                            {canDeleteIncident(incident) && (
+                              <button 
+                                className="menu-item menu-item--delete"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteIncident(incident._id);
+                                }}
+                              >
+                                🗑️ Delete
+                              </button>
+                            )}
+                            {canReportIncident(incident) && (
+                              <button 
+                                className="menu-item menu-item--report"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReportToAdmin(incident._id);
+                                }}
+                                disabled
+                              >
+                                🚨 Report to Admin
+                              </button>
+                            )}
+                            {!canDeleteIncident(incident) && !canReportIncident(incident) && (
+                              <div className="menu-item" style={{color: '#999', cursor: 'default'}}>
+                                No actions available
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{fontSize: '12px', color: '#999'}}>
+                        Login required
+                      </div>
+                    )}
                   </div>
                   <div className="popup-body">
                     <p className="category">📂 {incident.category}</p>
@@ -357,7 +480,7 @@ function MapView({ selectedIncident, onMarkerClick }) {
                       👍 {incident.votes.upvotes} | 👎 {incident.votes.downvotes}
                     </p>
                     <p className="date">
-                      📅 {new Date(incident.date).toLocaleDateString()}
+                      📅 {new Date(incident.timestamp).toLocaleDateString()} at {new Date(incident.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                   <button

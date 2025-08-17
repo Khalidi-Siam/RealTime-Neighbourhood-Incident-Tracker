@@ -23,7 +23,7 @@ const validateParams = require('../middlewares/validate-params-middleware');
 router.post('/submit', authenticateToken, validate(createIncidentSchema), createIncident);
 router.get('/', optionalAuthentication, getAllIncidents);
 router.get('/:id', optionalAuthentication, validateParams(getIncidentParamsSchema), getIncidentById);
-router.delete('/:id', authenticateToken, authorizeRoles('admin'), validateParams(getIncidentParamsSchema), deleteIncident);
+router.delete('/:id', authenticateToken, validateParams(getIncidentParamsSchema), deleteIncident);
 // router.post('/submit', verifyToken, upload.single('image'), createIncident);
 
 module.exports = router;

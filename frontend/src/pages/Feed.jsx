@@ -95,6 +95,18 @@ function Feed() {
     fetchIncidents(1, false);
   }, [filters.sortBy, filters.order, filters.category]);
 
+  // Listen for incident deletion events
+  useEffect(() => {
+    const handleIncidentDeleted = () => {
+      // Refresh the incidents list
+      setPage(1);
+      fetchIncidents(1, false);
+    };
+
+    window.addEventListener('incidentDeleted', handleIncidentDeleted);
+    return () => window.removeEventListener('incidentDeleted', handleIncidentDeleted);
+  }, []);
+
   return (
     <div className="container">
       <div className="feed-header">

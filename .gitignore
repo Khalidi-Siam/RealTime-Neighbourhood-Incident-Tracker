@@ -185,3 +185,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+neighbourhood/

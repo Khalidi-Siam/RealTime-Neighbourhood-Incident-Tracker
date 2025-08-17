@@ -1,7 +1,9 @@
-import { useState, useContext, forwardRef } from 'react';
+import { useState, useContext, forwardRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
 import CommentList from './CommentList.jsx';
 import CommentForm from './CommentForm.jsx';
+import ConfirmModal from './ConfirmModal.jsx';
 import { toast } from 'react-toastify';
 
 // Category colors and icons mapping
@@ -30,6 +32,10 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
   });
   const [showComments, setShowComments] = useState(false);
   const [error, setError] = useState('');
+  const [showMenu, setShowMenu] = useState(false);
+  
+  // Modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Get category configuration
   const getCategoryConfig = (category) => {
@@ -37,6 +43,95 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
   };
 
   const categoryInfo = getCategoryConfig(incident.category);
+
+  // Check if user can delete incident (admin or owner)
+  const canDeleteIncident = () => {
+    if (!currentUser) return false;
+    return currentUser.role === 'admin' || incident.submittedBy._id === currentUser.id;
+  };
+
+  // Check if user can report incident (user role only)
+  const canReportIncident = () => {
+    if (!currentUser) return false;
+    return currentUser.role === 'user';
+  };
+
+  // Delete incident function
+  const handleDeleteIncident = async () => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/incidents/${incident._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to delete incident');
+      }
+
+      // Close modals
+      setShowConfirmModal(false);
+      setShowMenu(false);
+      
+      // Show success toast
+      toast.success('Incident deleted successfully', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+
+      // Trigger page refresh or parent component update
+      window.dispatchEvent(new CustomEvent('incidentDeleted', { detail: incident._id }));
+    } catch (err) {
+      setShowConfirmModal(false);
+      toast.error('Error: ' + err.message, {
+        position: "top-right",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
+  };
+
+  // Show delete confirmation
+  const showDeleteConfirmation = () => {
+    setShowMenu(false);
+    setShowConfirmModal(true);
+  };
+
+  // Handle report to admin (placeholder for now)
+  const handleReportToAdmin = () => {
+    setShowMenu(false);
+    toast.info('Report to admin feature will be implemented soon.', {
+      position: "top-right",
+      autoClose: 3000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+    });
+  };
+
+  // Handle clicking outside to close menu
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.incident-card__menu')) {
+        setShowMenu(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const handleVote = async (voteType) => {
     if (!currentUser || !token) {
@@ -117,25 +212,69 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
   return (
     <div ref={ref} className={`incident-card ${isSelected ? 'incident-card--selected' : ''}`}>
       <div className="incident-card__header">
-        <span 
-          className="incident-card__category" 
-          style={{
-            backgroundColor: `${categoryInfo.color}20`,
-            color: categoryInfo.color,
-            borderColor: `${categoryInfo.color}40`
-          }}
-        >
-          {categoryInfo.icon} {incident.category}
-        </span>
-        {incident.severity && (
-          <span className={`incident-card__severity incident-card__severity--${incident.severity.toLowerCase()}`}>
-            {incident.severity}
+        <div className="incident-card__header-left">
+          <span 
+            className="incident-card__category" 
+            style={{
+              backgroundColor: `${categoryInfo.color}20`,
+              color: categoryInfo.color,
+              borderColor: `${categoryInfo.color}40`
+            }}
+          >
+            {categoryInfo.icon} {incident.category}
           </span>
-        )}
-        {!incident.severity && (
-          <span className="incident-card__severity incident-card__severity--medium">
-            Medium
-          </span>
+          {incident.severity && (
+            <span className={`incident-card__severity incident-card__severity--${incident.severity.toLowerCase()}`}>
+              {incident.severity}
+            </span>
+          )}
+          {!incident.severity && (
+            <span className="incident-card__severity incident-card__severity--medium">
+              Medium
+            </span>
+          )}
+        </div>
+        {/* Three-dot menu */}
+        {currentUser && (canDeleteIncident() || canReportIncident()) && (
+          <div className="incident-card__menu">
+            <button 
+              className="incident-card__menu-trigger"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMenu(!showMenu);
+              }}
+              aria-label="More options"
+            >
+              ⋮
+            </button>
+            {showMenu && (
+              <div className="incident-card__menu-dropdown">
+                {canDeleteIncident() && (
+                  <button 
+                    className="incident-card__menu-item incident-card__menu-item--delete"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      showDeleteConfirmation();
+                    }}
+                  >
+                    🗑️ Delete
+                  </button>
+                )}
+                {canReportIncident() && (
+                  <button 
+                    className="incident-card__menu-item incident-card__menu-item--report"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReportToAdmin();
+                    }}
+                    disabled
+                  >
+                    🚨 Report to Admin
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
       <h4 className="incident-card__title">{incident.title}</h4>
@@ -189,6 +328,21 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
           <CommentList incidentId={incident._id} />
           {currentUser && <CommentForm incidentId={incident._id} />}
         </div>
+      )}
+      
+      {/* Render confirmation modal using portal to ensure proper positioning */}
+      {createPortal(
+        <ConfirmModal
+          isOpen={showConfirmModal}
+          onClose={() => setShowConfirmModal(false)}
+          onConfirm={handleDeleteIncident}
+          title="Delete Incident"
+          message="Are you sure you want to delete this incident? This action cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
+          type="danger"
+        />,
+        document.body
       )}
     </div>
   );

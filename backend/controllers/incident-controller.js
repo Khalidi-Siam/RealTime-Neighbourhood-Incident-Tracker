@@ -187,6 +187,13 @@ const deleteIncident = async (req, res) => {
       return res.status(404).json({ message: 'Incident not found' });
     }
 
+    // Check if user is authorized to delete (admin or incident owner)
+    if (req.user.role !== 'admin' && incident.submittedBy.toString() !== req.user.id) {
+      return res.status(403).json({ 
+        message: 'Access denied. You can only delete your own incidents.' 
+      });
+    }
+
     // Delete all related data
     await Promise.all([
       // Delete all comments for this incident
