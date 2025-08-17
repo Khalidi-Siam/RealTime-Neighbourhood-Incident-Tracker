@@ -1,11 +1,13 @@
 import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { useTheme } from '../context/ThemeContext.jsx';
 import Modal from './Modal.jsx';
 import AuthForm from './AuthForm.jsx';
 import ReportIncidentForm from './ReportIncidentForm.jsx';
 
 function Nav({ currentView, onViewChange }) {
   const { currentUser, logout } = useContext(AuthContext);
+  const { isDarkMode, toggleTheme } = useTheme();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -56,6 +58,14 @@ function Nav({ currentView, onViewChange }) {
           </div>
           
           <div className="nav__actions">
+            <button
+              className="btn btn--secondary btn--sm"
+              onClick={toggleTheme}
+              title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              <span>{isDarkMode ? '☀️' : '🌙'}</span>
+            </button>
             {currentUser ? (
               <>
                 <button

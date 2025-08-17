@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AuthProvider } from './context/AuthContext.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
 import Home from './pages/Home.jsx';
 import Feed from './pages/Feed.jsx';
 import Nav from './components/Nav.jsx';
@@ -21,7 +22,7 @@ function App() {
   };
 
   return (
-    <>
+    <ThemeProvider>
       {/* Navigation Header */}
       <header className="header">
         <Nav currentView={currentView} onViewChange={setCurrentView} />
@@ -50,7 +51,7 @@ function App() {
         draggable
         pauseOnHover
       />
-    </>
+    </ThemeProvider>
   );
 }
 
