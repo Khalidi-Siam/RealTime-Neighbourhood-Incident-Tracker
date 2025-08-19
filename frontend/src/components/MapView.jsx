@@ -218,7 +218,7 @@ function MapView({ selectedIncident, onMarkerClick }) {
     setError('');
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/incidents?limit=100', {
+      const response = await fetch('http://localhost:3000/api/incidents?limit=100&sortBy=timestamp&order=-1', {
         headers: {
           'Content-Type': 'application/json',
           ...(token && { Authorization: `Bearer ${token}` }),

@@ -1650,12 +1650,26 @@ select.form-control {
   display: flex;
   gap: var(--space-16);
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  justify-content: space-between;
 }
 
 .feed-search {
   flex: 1;
-  min-width: 300px;
+  min-width: 250px;
+  max-width: 300px;
+}
+
+.filter-controls {
+  display: flex;
+  gap: var(--space-12);
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.filter-select {
+  min-width: 150px;
+  white-space: nowrap;
 }
 
 .feed-content {
@@ -2867,6 +2881,23 @@ body.modal-open {
     border: 2px solid #000;
   }
 }
+
+/* Medium screen adjustments for better feed filter layout */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .feed-filters {
+    gap: var(--space-12);
+  }
+
+  .feed-search {
+    min-width: 200px;
+    max-width: 250px;
+  }
+
+  .filter-select {
+    min-width: 130px;
+  }
+}
+
 @media (max-width: 768px) {
   .nav__menu {
     position: absolute;
@@ -3272,6 +3303,27 @@ body.modal-open {
   .feed__pagination {
     flex-direction: column;
     gap: var(--space-12);
+  }
+
+  .feed-filters {
+    flex-wrap: wrap;
+    gap: var(--space-12);
+  }
+
+  .feed-search {
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  .filter-controls {
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .filter-select {
+    min-width: calc(50% - var(--space-6));
+    flex: 1;
   }
 }
 

@@ -37,13 +37,16 @@ const createIncident = async (req, res) => {
 const getAllIncidents = async (req, res) => {
   try {
     // console.log('GET /api/incidents called with query:', JSON.stringify(req.query, null, 2));
-    const { page = 1, limit = 10, category, sortBy = 'timestamp', order = -1 } = req.query;
+    const { page = 1, limit = 10, category, severity, sortBy = 'timestamp', order = -1 } = req.query;
     const skip = (page - 1) * limit;
 
     // Build query filter
     const filter = {};
-    if (category && category !== 'All') {
+    if (category && category !== 'All' && category !== '') {
       filter.category = category;
+    }
+    if (severity && severity !== 'All' && severity !== '') {
+      filter.severity = severity;
     }
 
     // Verify models
@@ -94,11 +97,22 @@ const getAllIncidents = async (req, res) => {
     // Sort incidents
     const sortOrder = parseInt(order);
     if (sortBy === 'votes.total') {
-      incidentsWithVotes.sort((a, b) => sortOrder * (b.votes.total - a.votes.total));
+      incidentsWithVotes.sort((a, b) => {
+        return sortOrder === -1 ? (b.votes.total - a.votes.total) : (a.votes.total - b.votes.total);
+      });
+    } else if (sortBy === 'votes.upvotes') {
+      incidentsWithVotes.sort((a, b) => {
+        return sortOrder === -1 ? (b.votes.upvotes - a.votes.upvotes) : (a.votes.upvotes - b.votes.upvotes);
+      });
     } else if (sortBy === 'timestampAsc') {
-      incidentsWithVotes.sort((a, b) => sortOrder * (new Date(a.timestamp) - new Date(b.timestamp)));
+      incidentsWithVotes.sort((a, b) => {
+        return sortOrder === -1 ? (new Date(b.timestamp) - new Date(a.timestamp)) : (new Date(a.timestamp) - new Date(b.timestamp));
+      });
     } else {
-      incidentsWithVotes.sort((a, b) => sortOrder * (new Date(b.timestamp) - new Date(a.timestamp)));
+      // Default timestamp sorting - newest first when order = -1
+      incidentsWithVotes.sort((a, b) => {
+        return sortOrder === -1 ? (new Date(b.timestamp) - new Date(a.timestamp)) : (new Date(a.timestamp) - new Date(b.timestamp));
+      });
     }
 
     const total = await Incident.countDocuments(filter);

@@ -13,16 +13,20 @@ function Feed() {
     sortBy: 'timestamp',
     order: -1,
     category: 'All',
+    severity: 'All',
   });
 
-  const categories = ['All', 'Crime', 'Safety', 'Utility', 'Other'];
+  const categories = ['All', 'Crime', 'Accident', 'Lost', 'Utility', 'Other'];
+  const severities = ['All', 'Low', 'Medium', 'High'];
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({
       ...prev,
       [name]: value,
-      ...(name === 'sortBy' && { order: value === 'timestamp' ? -1 : value === 'votes.total' ? -1 : 1 }),
+      ...(name === 'sortBy' && { 
+        order: value === 'timestampAsc' ? 1 : -1  // Only 'timestampAsc' uses ascending (1), everything else uses descending (-1)
+      }),
     }));
     // Reset will be handled by useEffect
   };
@@ -38,7 +42,8 @@ function Feed() {
       const query = new URLSearchParams({
         page: pageNum,
         limit: 10,
-        category: filters.category,
+        category: filters.category === 'All' ? '' : filters.category,
+        severity: filters.severity === 'All' ? '' : filters.severity,
         sortBy: filters.sortBy,
         order: filters.order,
       }).toString();
@@ -60,11 +65,17 @@ function Feed() {
         throw new Error('Invalid response format: incidents or pagination missing');
       }
       
+      // Filter incidents by severity if backend doesn't support these filters
+      let filteredIncidents = data.incidents;
+      if (filters.severity !== 'All') {
+        filteredIncidents = filteredIncidents.filter(incident => incident.severity === filters.severity);
+      }
+      
       // Append or replace incidents based on append flag
       if (append && pageNum > 1) {
-        setIncidents(prev => [...prev, ...data.incidents]);
+        setIncidents(prev => [...prev, ...filteredIncidents]);
       } else {
-        setIncidents(data.incidents);
+        setIncidents(filteredIncidents);
       }
       
       setHasNextPage(data.pagination.hasNext);
@@ -93,7 +104,7 @@ function Feed() {
   useEffect(() => {
     setPage(1);
     fetchIncidents(1, false);
-  }, [filters.sortBy, filters.order, filters.category]);
+  }, [filters.sortBy, filters.order, filters.category, filters.severity]);
 
   // Listen for incident deletion events
   useEffect(() => {
@@ -120,16 +131,42 @@ function Feed() {
               // You can add search functionality later
             />
           </div>
-          <select
-            className="form-control"
-            value={filters.sortBy}
-            onChange={handleFilterChange}
-            name="sortBy"
-          >
-            <option value="timestamp">Newest First</option>
-            <option value="timestampAsc">Oldest First</option>
-            <option value="votes.total">Most Voted</option>
-          </select>
+          <div className="filter-controls">
+            <select
+              className="form-control filter-select"
+              value={filters.category}
+              onChange={handleFilterChange}
+              name="category"
+            >
+              {categories.map(category => (
+                <option key={category} value={category}>
+                  {category === 'All' ? 'All Categories' : category}
+                </option>
+              ))}
+            </select>
+            <select
+              className="form-control filter-select"
+              value={filters.severity}
+              onChange={handleFilterChange}
+              name="severity"
+            >
+              {severities.map(severity => (
+                <option key={severity} value={severity}>
+                  {severity === 'All' ? 'All Severities' : severity}
+                </option>
+              ))}
+            </select>
+            <select
+              className="form-control filter-select"
+              value={filters.sortBy}
+              onChange={handleFilterChange}
+              name="sortBy"
+            >
+              <option value="timestamp">Newest First</option>
+              <option value="timestampAsc">Oldest First</option>
+              <option value="votes.upvotes">Most Voted</option>
+            </select>
+          </div>
         </div>
       </div>
       <div className="feed-content">
