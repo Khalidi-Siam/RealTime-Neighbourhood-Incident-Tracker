@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { AuthProvider } from './context/AuthContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import Home from './pages/Home.jsx';
 import Feed from './pages/Feed.jsx';
+import Profile from './pages/Profile.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx';
 import Nav from './components/Nav.jsx';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -16,6 +17,10 @@ function App() {
         return <Home />;
       case 'feed':
         return <Feed />;
+      case 'profile':
+        return <Profile />;
+      case 'admin':
+        return <AdminDashboard />;
       default:
         return <Home />;
     }
@@ -36,6 +41,14 @@ function App() {
         
         <div className={`view ${currentView === 'feed' ? 'view--active' : ''}`} id="feedView">
           {currentView === 'feed' && <Feed />}
+        </div>
+        
+        <div className={`view ${currentView === 'profile' ? 'view--active' : ''}`} id="profileView">
+          {currentView === 'profile' && <Profile />}
+        </div>
+        
+        <div className={`view ${currentView === 'admin' ? 'view--active' : ''}`} id="adminView">
+          {currentView === 'admin' && <AdminDashboard />}
         </div>
       </main>
 

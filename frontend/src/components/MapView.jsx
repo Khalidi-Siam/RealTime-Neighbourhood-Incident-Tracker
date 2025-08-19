@@ -8,24 +8,34 @@ import L from 'leaflet';
 delete L.Icon.Default.prototype._getIconUrl;
 
 // Custom marker icons for different incident severities
-const createCustomIcon = (severity, isSelected = false) => {
+const createCustomIcon = (severity, isSelected = false, isFalseReport = false) => {
   const colors = {
     High: isSelected ? '#ff4757' : '#ff3742',
     Medium: isSelected ? '#ffa502' : '#ff9500', 
-    Low: isSelected ? '#2ed573' : '#26de81'
+    Low: isSelected ? '#2ed573' : '#26de81',
+    False: isSelected ? '#95a5a6' : '#7f8c8d' // Gray color for false reports
   };
   
   const size = isSelected ? [35, 35] : [25, 25];
-  const color = colors[severity] || colors.Low;
+  let color, icon;
+  
+  if (isFalseReport) {
+    color = colors.False;
+    icon = '❌'; // X mark for false reports
+  } else {
+    color = colors[severity] || colors.Low;
+    icon = severity === 'High' ? '⚠️' : severity === 'Medium' ? '⚡' : '📍';
+  }
   
   return new L.DivIcon({
-    className: 'custom-marker',
+    className: `custom-marker ${isFalseReport ? 'custom-marker--false' : ''}`,
     html: `
-      <div class="marker-pin ${isSelected ? 'marker-selected' : ''}" style="background-color: ${color};">
+      <div class="marker-pin ${isSelected ? 'marker-selected' : ''} ${isFalseReport ? 'marker-pin--false' : ''}" style="background-color: ${color};">
         <div class="marker-icon">
-          ${severity === 'High' ? '⚠️' : severity === 'Medium' ? '⚡' : '📍'}
+          ${icon}
         </div>
-        <div class="marker-pulse" style="background-color: ${color};"></div>
+        <div class="marker-pulse ${isFalseReport ? 'marker-pulse--false' : ''}" style="background-color: ${color};"></div>
+        ${isFalseReport ? '<div class="marker-false-label">FALSE</div>' : ''}
       </div>
     `,
     iconSize: size,
@@ -410,14 +420,23 @@ function MapView({ selectedIncident, onMarkerClick }) {
               position={[incident.location.lat, incident.location.lng]}
               icon={createCustomIcon(
                 incident.severity,
-                selectedIncident && selectedIncident._id === incident._id
+                selectedIncident && selectedIncident._id === incident._id,
+                incident.falseFlagVerified
               )}
             >
               <Popup className="custom-popup">
                 <div className="popup-content">
+                  {/* False Report Banner */}
+                  {incident.falseFlagVerified && (
+                    <div className="popup-false-banner">
+                      <span className="popup-false-icon">⚠️</span>
+                      <span className="popup-false-text">FALSE REPORT - Verified by Admin</span>
+                    </div>
+                  )}
+                  
                   <div className="popup-header">
                     <div className="popup-header-left">
-                      <h3>{incident.title}</h3>
+                      <h3 className={incident.falseFlagVerified ? 'popup-title--false' : ''}>{incident.title}</h3>
                       <span className={`severity-badge ${incident.severity.toLowerCase()}`}>
                         {incident.severity}
                       </span>

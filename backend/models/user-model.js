@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { create } = require('./false-report-model');
 
 
 const userSchema = new mongoose.Schema({
@@ -25,6 +26,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['user', 'admin'],
         default: 'user',
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now,
     },
 
 });

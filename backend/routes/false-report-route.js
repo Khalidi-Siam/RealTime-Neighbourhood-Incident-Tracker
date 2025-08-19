@@ -4,7 +4,8 @@ const {
     createFalseReport,
     getUserReportOnIncident,
     acceptFalseReport,
-    rejectFalseReport
+    rejectFalseReport,
+    getAllReportedIncidents
 } = require('../controllers/false-report-controller');
 const { authenticateToken, authorizeRoles } = require('../middlewares/auth-middleware');
 const { createFalseReportSchema, falseReportParamsSchema } = require('../validators/false-report-validator');
@@ -40,6 +41,13 @@ router.put('/:incidentId/reject',
     authenticateToken,
     authorizeRoles('admin'), 
     rejectFalseReport
+);
+
+// Admin gets all reported incidents (requires authentication and admin role)
+router.get('/admin/reported-incidents', 
+    authenticateToken,
+    authorizeRoles('admin'), 
+    getAllReportedIncidents
 );
 
 module.exports = router;

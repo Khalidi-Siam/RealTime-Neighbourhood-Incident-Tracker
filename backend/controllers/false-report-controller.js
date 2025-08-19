@@ -106,13 +106,18 @@ const acceptFalseReport = async (req, res) => {
             return res.status(404).json({ message: 'Incident not found' });
         }
 
-        // Update incident flags
+        // Check if incident has been flagged as false
+        if (!incident.isFalseFlagged) {
+            return res.status(400).json({ message: 'This incident has not been reported as false' });
+        }
+
+        // Update incident flags - keep in feed/map but mark as verified false
         incident.falseFlagVerified = true;
-        incident.isFalseFlagged = false;
+        incident.isFalseFlagged = false; // Remove from admin pending list
         await incident.save();
 
         res.status(200).json({ 
-            message: 'False report accepted successfully',
+            message: 'False report accepted successfully. Incident will remain visible but marked as false.',
             incident: {
                 id: incident._id,
                 falseFlagVerified: incident.falseFlagVerified,
@@ -143,7 +148,7 @@ const rejectFalseReport = async (req, res) => {
         await incident.save();
 
         res.status(200).json({ 
-            message: 'False report rejected successfully',
+            message: 'False report rejected successfully. Incident restored to normal status.',
             incident: {
                 id: incident._id,
                 falseFlagVerified: incident.falseFlagVerified,
@@ -157,9 +162,66 @@ const rejectFalseReport = async (req, res) => {
     }
 };
 
+// Admin gets all reported incidents
+const getAllReportedIncidents = async (req, res) => {
+    try {
+        const { page = 1, limit = 20 } = req.query;
+        const skip = (page - 1) * limit;
+
+        // Get all incidents that have been reported as false
+        const reportedIncidents = await Incident.find({ 
+            isFalseFlagged: true 
+        })
+        .populate('submittedBy', 'username email')
+        .skip(skip)
+        .limit(parseInt(limit))
+        .sort({ timestamp: -1 })
+        .lean();
+
+        // For each incident, get the false reports
+        const incidentsWithReports = await Promise.all(
+            reportedIncidents.map(async (incident) => {
+                const reports = await IncidentReport.find({ incidentId: incident._id })
+                    .populate('reportedBy', 'username email')
+                    .sort({ timestamp: -1 });
+
+                return {
+                    ...incident,
+                    reports: reports.map(report => ({
+                        id: report._id,
+                        reason: report.reason,
+                        timestamp: report.timestamp,
+                        reportedBy: report.reportedBy
+                    })),
+                    reportCount: reports.length
+                };
+            })
+        );
+
+        const total = await Incident.countDocuments({ isFalseFlagged: true });
+
+        res.status(200).json({
+            message: 'Reported incidents retrieved successfully',
+            incidents: incidentsWithReports,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(total / limit),
+                totalIncidents: total,
+                hasNext: page * limit < total,
+                hasPrev: page > 1
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting reported incidents:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 module.exports = {
     createFalseReport,
     getUserReportOnIncident,
     acceptFalseReport,
-    rejectFalseReport
+    rejectFalseReport,
+    getAllReportedIncidents
 };

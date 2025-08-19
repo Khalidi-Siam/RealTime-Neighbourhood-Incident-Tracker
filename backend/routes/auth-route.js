@@ -11,4 +11,9 @@ router.post('/login', validate(loginSchema), authController.login);
 
 // Protected routes
 router.get('/profile', authenticateToken, authController.getProfile);
+
+// Admin only routes
+router.get('/admin/users', authenticateToken, authorizeRoles('admin'), authController.getAllUsers);
+router.get('/admin/users-count', authenticateToken, authorizeRoles('admin'), authController.getUsersCount);
+
 module.exports = router;

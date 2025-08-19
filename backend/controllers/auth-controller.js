@@ -89,8 +89,76 @@ const getProfile = async (req, res) => {
     }
 }
 
+// Admin gets all users (excluding other admins)
+const getAllUsers = async (req, res) => {
+    try {
+        const { page = 1, limit = 20, search = '' } = req.query;
+        const skip = (page - 1) * limit;
+
+        // Build query filter - exclude admin users and optionally search
+        const filter = { 
+            role: { $ne: 'admin' } // Exclude admin users
+        };
+
+        // Add search functionality
+        if (search.trim()) {
+            filter.$or = [
+                { username: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Get users with pagination
+        const users = await User.find(filter)
+            .select('-password') // Exclude password field
+            .skip(skip)
+            .limit(parseInt(limit))
+            .sort({ createdAt: -1 }) // Latest users first
+            .lean();
+
+        const total = await User.countDocuments(filter);
+
+        res.status(200).json({
+            message: 'Users retrieved successfully',
+            users: users,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(total / limit),
+                totalUsers: total,
+                hasNext: page * limit < total,
+                hasPrev: page > 1
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting users:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// Admin gets total user count
+const getUsersCount = async (req, res) => {
+    try {
+        // Count all users excluding admin users
+        const totalUsers = await User.countDocuments({ 
+            role: { $ne: 'admin' } 
+        });
+
+        res.status(200).json({
+            message: 'User count retrieved successfully',
+            totalUsers: totalUsers
+        });
+
+    } catch (error) {
+        console.error('Error getting users count:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 module.exports = {
     register,
     login,
-    getProfile
+    getProfile,
+    getAllUsers,
+    getUsersCount
 };

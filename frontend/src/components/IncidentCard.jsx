@@ -4,6 +4,8 @@ import { AuthContext } from '../context/AuthContext.jsx';
 import CommentList from './CommentList.jsx';
 import CommentForm from './CommentForm.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
+import ReportModal from './ReportModal.jsx';
+import useReportStatus from '../hooks/useReportStatus.jsx';
 import { toast } from 'react-toastify';
 
 // Category colors and icons mapping
@@ -24,6 +26,7 @@ const categoryConfig = {
 
 const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
   const { currentUser, token } = useContext(AuthContext);
+  const { hasReported, report, refreshStatus } = useReportStatus(incident._id);
   
   const [votes, setVotes] = useState({
     upvotes: incident.votes.upvotes || 0,
@@ -36,6 +39,7 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
   
   // Modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Get category configuration
   const getCategoryConfig = (category) => {
@@ -50,10 +54,13 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
     return currentUser.role === 'admin' || incident.submittedBy._id === currentUser.id;
   };
 
-  // Check if user can report incident (user role only)
+  // Check if user can report incident (user role only, not their own incident, haven't reported already)
   const canReportIncident = () => {
     if (!currentUser) return false;
-    return currentUser.role === 'user';
+    if (currentUser.role !== 'user') return false;
+    if (incident.submittedBy._id === currentUser.id) return false;
+    if (hasReported) return false;
+    return true;
   };
 
   // Delete incident function
@@ -108,17 +115,10 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
     setShowConfirmModal(true);
   };
 
-  // Handle report to admin (placeholder for now)
+  // Handle report to admin
   const handleReportToAdmin = () => {
     setShowMenu(false);
-    toast.info('Report to admin feature will be implemented soon.', {
-      position: "top-right",
-      autoClose: 3000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-    });
+    setShowReportModal(true);
   };
 
   // Handle clicking outside to close menu
@@ -209,8 +209,17 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
     }
   };
 
-  return (
-    <div ref={ref} className={`incident-card ${isSelected ? 'incident-card--selected' : ''}`}>
+    return (
+    <div ref={ref} className={`incident-card ${isSelected ? 'incident-card--selected' : ''} ${incident.falseFlagVerified ? 'incident-card--false-report' : ''}`}>
+      {/* False Report Banner */}
+      {incident.falseFlagVerified && (
+        <div className="incident-card__false-banner">
+          <span className="false-banner__icon">⚠️</span>
+          <span className="false-banner__text">FALSE REPORT</span>
+          <span className="false-banner__verified">Verified by Admin</span>
+        </div>
+      )}
+      
       <div className="incident-card__header">
         <div className="incident-card__header-left">
           <span 
@@ -267,19 +276,30 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
                       e.stopPropagation();
                       handleReportToAdmin();
                     }}
-                    disabled
                   >
                     🚨 Report to Admin
                   </button>
+                )}
+                {hasReported && (
+                  <div className="incident-card__menu-item incident-card__menu-item--reported">
+                    ✅ Already Reported
+                  </div>
                 )}
               </div>
             )}
           </div>
         )}
       </div>
-      <h4 className="incident-card__title">{incident.title}</h4>
-      <div className="incident-card__description">
+      <h4 className={`incident-card__title ${incident.falseFlagVerified ? 'incident-card__title--false' : ''}`}>
+        {incident.title}
+      </h4>
+      <div className={`incident-card__description ${incident.falseFlagVerified ? 'incident-card__description--false' : ''}`}>
         {incident.description}
+        {incident.falseFlagVerified && (
+          <div className="incident-card__false-disclaimer">
+            <em>This incident has been verified as a false report by administrators.</em>
+          </div>
+        )}
       </div>
       <div className="incident-card__stats">
         <div className="incident-card__stat">
@@ -341,6 +361,17 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
           confirmText="Delete"
           cancelText="Cancel"
           type="danger"
+        />,
+        document.body
+      )}
+
+      {/* Render report modal using portal to ensure proper positioning */}
+      {createPortal(
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          incident={incident}
+          onReportSubmitted={refreshStatus}
         />,
         document.body
       )}

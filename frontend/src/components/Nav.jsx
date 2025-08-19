@@ -52,7 +52,7 @@ function Nav({ currentView, onViewChange }) {
                 onClick={() => handleViewChange('admin')}
               >
                 <span className="nav__icon">⚙️</span>
-                Admin
+                Dashboard
               </button>
             )}
           </div>
@@ -75,9 +75,25 @@ function Nav({ currentView, onViewChange }) {
                   <span>+ Report Incident</span>
                 </button>
                 <div className="nav__user">
-                  <span className="nav__username">{currentUser.name}</span>
-                  <button className="nav__logout" onClick={logout}>
-                    Logout
+                  <button 
+                    className="nav__profile-btn"
+                    onClick={() => handleViewChange('profile')}
+                    title={`${currentUser.username || currentUser.name}'s Profile`}
+                  >
+                    <div className="nav__profile-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                      </svg>
+                    </div>
+                    <span className="nav__username">{currentUser.username || currentUser.name}</span>
+                  </button>
+                  <button className="nav__logout" onClick={logout} title="Logout">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                      <polyline points="16,17 21,12 16,7"></polyline>
+                      <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
                   </button>
                 </div>
               </>
