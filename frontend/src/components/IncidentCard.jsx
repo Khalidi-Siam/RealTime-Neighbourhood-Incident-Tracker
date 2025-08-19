@@ -7,6 +7,7 @@ import ConfirmModal from './ConfirmModal.jsx';
 import ReportModal from './ReportModal.jsx';
 import useReportStatus from '../hooks/useReportStatus.jsx';
 import { toast } from 'react-toastify';
+import jsPDF from 'jspdf';
 
 // Category colors and icons mapping
 const categoryConfig = {
@@ -119,6 +120,179 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
   const handleReportToAdmin = () => {
     setShowMenu(false);
     setShowReportModal(true);
+  };
+
+  // Handle PDF download
+  const handleDownloadPDF = async () => {
+    setShowMenu(false);
+    
+    try {
+      // Show loading toast
+      const loadingToast = toast.loading('Generating PDF...', {
+        position: "top-right",
+      });
+
+      // Fetch complete incident details
+      const response = await fetch(`http://localhost:3000/api/incidents/${incident._id}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+      });
+
+      let incidentData = incident;
+
+      if (response.ok) {
+        const fullData = await response.json();
+        incidentData = fullData.incident || incident;
+      }
+
+      // Create PDF with UTF-8 support
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        putOnlyUsedFonts: true,
+        floatPrecision: 16
+      });
+
+      const pageWidth = doc.internal.pageSize.width;
+      const margin = 20;
+      const lineHeight = 7;
+      let currentY = margin;
+
+      // Helper function to add text with word wrapping and UTF-8 support
+      const addWrappedText = (text, x, y, maxWidth, fontSize = 12) => {
+        doc.setFontSize(fontSize);
+        // Ensure UTF-8 encoding by properly handling the text
+        const utf8Text = decodeURIComponent(encodeURIComponent(text));
+        const lines = doc.splitTextToSize(utf8Text, maxWidth);
+        doc.text(lines, x, y);
+        return y + (lines.length * lineHeight);
+      };
+
+      // Title
+      doc.setFontSize(20);
+      doc.setFont(undefined, 'bold');
+      currentY = addWrappedText('Incident Report', margin, currentY, pageWidth - 2 * margin, 20);
+      currentY += 10;
+
+      // Incident Title
+      doc.setFontSize(16);
+      doc.setFont(undefined, 'bold');
+      currentY = addWrappedText(incidentData.title || 'Untitled Incident', margin, currentY, pageWidth - 2 * margin, 16);
+      currentY += 10;
+
+      // Basic Info
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'normal');
+      
+      // Category
+      const categoryInfo = getCategoryConfig(incidentData.category);
+      currentY = addWrappedText(`Category: ${incidentData.category}`, margin, currentY, pageWidth - 2 * margin);
+      currentY += 5;
+
+      // Location
+      currentY = addWrappedText(`Location: ${incidentData.location?.address || 'Location not specified'}`, margin, currentY, pageWidth - 2 * margin);
+      if (incidentData.location?.lat && incidentData.location?.lng) {
+        currentY = addWrappedText(`Coordinates: ${incidentData.location.lat}, ${incidentData.location.lng}`, margin, currentY, pageWidth - 2 * margin);
+        
+        // Add clickable map link
+        const mapUrl = `${window.location.origin}/#map?lat=${incidentData.location.lat}&lng=${incidentData.location.lng}&incident=${incidentData._id}`;
+        doc.setTextColor(0, 0, 255); // Blue color for link
+        doc.setFont(undefined, 'normal');
+        const linkText = 'Click here to view location on map';
+        currentY = addWrappedText(linkText, margin, currentY, pageWidth - 2 * margin);
+        
+        // Add the actual link functionality
+        doc.link(margin, currentY - lineHeight, pageWidth - 2 * margin, lineHeight, { url: mapUrl });
+        
+        // Reset text color
+        doc.setTextColor(0, 0, 0);
+      }
+      currentY += 5;
+
+      // Timestamp
+      currentY = addWrappedText(`Reported: ${new Date(incidentData.timestamp).toLocaleString()}`, margin, currentY, pageWidth - 2 * margin);
+      currentY += 5;
+
+      // Submitted by
+      currentY = addWrappedText(`Submitted by: ${incidentData.submittedBy?.username || 'Anonymous'}`, margin, currentY, pageWidth - 2 * margin);
+      currentY += 10;
+
+      // Description
+      doc.setFont(undefined, 'bold');
+      currentY = addWrappedText('Description:', margin, currentY, pageWidth - 2 * margin);
+      currentY += 5;
+      doc.setFont(undefined, 'normal');
+      currentY = addWrappedText(incidentData.description || 'No description provided', margin, currentY, pageWidth - 2 * margin);
+      currentY += 10;
+
+      // Status
+      if (incidentData.falseFlagVerified) {
+        doc.setTextColor(255, 0, 0);
+        doc.setFont(undefined, 'bold');
+        currentY = addWrappedText('STATUS: VERIFIED AS FALSE REPORT', margin, currentY, pageWidth - 2 * margin);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        currentY += 10;
+      }
+
+      // Votes
+      doc.setFont(undefined, 'bold');
+      currentY = addWrappedText('Community Response:', margin, currentY, pageWidth - 2 * margin);
+      currentY += 5;
+      doc.setFont(undefined, 'normal');
+      currentY = addWrappedText(`Upvotes: ${votes.upvotes} | Downvotes: ${votes.downvotes}`, margin, currentY, pageWidth - 2 * margin);
+      currentY += 15;
+
+      // Additional incident details if available
+      if (incidentData.severity) {
+        doc.setFont(undefined, 'bold');
+        currentY = addWrappedText('Severity:', margin, currentY, pageWidth - 2 * margin);
+        currentY += 5;
+        doc.setFont(undefined, 'normal');
+        currentY = addWrappedText(incidentData.severity, margin, currentY, pageWidth - 2 * margin);
+        currentY += 10;
+      }
+
+      // Footer
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin - 30, doc.internal.pageSize.height - 10);
+        doc.text('Generated by Neighbourhood Incident Tracker', margin, doc.internal.pageSize.height - 10);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, margin, doc.internal.pageSize.height - 5);
+      }
+
+      // Save the PDF
+      const fileName = `incident-${incidentData._id}-${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+
+      // Close loading toast and show success
+      toast.dismiss(loadingToast);
+      toast.success('PDF downloaded successfully!', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF: ' + error.message, {
+        position: "top-right",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
   };
 
   // Handle clicking outside to close menu
@@ -244,21 +418,29 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
           )}
         </div>
         {/* Three-dot menu */}
-        {currentUser && (canDeleteIncident() || canReportIncident()) && (
-          <div className="incident-card__menu">
-            <button 
-              className="incident-card__menu-trigger"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowMenu(!showMenu);
-              }}
-              aria-label="More options"
-            >
-              ⋮
-            </button>
+        <div className="incident-card__menu">
+          <button 
+            className="incident-card__menu-trigger"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
+            aria-label="More options"
+          >
+            ⋮
+          </button>
             {showMenu && (
               <div className="incident-card__menu-dropdown">
-                {canDeleteIncident() && (
+                <button 
+                  className="incident-card__menu-item incident-card__menu-item--download"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownloadPDF();
+                  }}
+                >
+                  📄 Download PDF
+                </button>
+                {currentUser && canDeleteIncident() && (
                   <button 
                     className="incident-card__menu-item incident-card__menu-item--delete"
                     onClick={(e) => {
@@ -269,7 +451,7 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
                     🗑️ Delete
                   </button>
                 )}
-                {canReportIncident() && (
+                {currentUser && canReportIncident() && (
                   <button 
                     className="incident-card__menu-item incident-card__menu-item--report"
                     onClick={(e) => {
@@ -280,15 +462,14 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
                     🚨 Report to Admin
                   </button>
                 )}
-                {hasReported && (
+                {currentUser && hasReported && (
                   <div className="incident-card__menu-item incident-card__menu-item--reported">
                     ✅ Already Reported
                   </div>
                 )}
               </div>
             )}
-          </div>
-        )}
+        </div>
       </div>
       <h4 className={`incident-card__title ${incident.falseFlagVerified ? 'incident-card__title--false' : ''}`}>
         {incident.title}

@@ -36,7 +36,7 @@ const createIncident = async (req, res) => {
 
 const getAllIncidents = async (req, res) => {
   try {
-    console.log('GET /api/incidents called with query:', JSON.stringify(req.query, null, 2));
+    // console.log('GET /api/incidents called with query:', JSON.stringify(req.query, null, 2));
     const { page = 1, limit = 10, category, sortBy = 'timestamp', order = -1 } = req.query;
     const skip = (page - 1) * limit;
 
@@ -115,7 +115,7 @@ const getAllIncidents = async (req, res) => {
       }
     };
 
-    console.log('Sending response:', JSON.stringify(response, null, 2));
+    // console.log('Sending response:', JSON.stringify(response, null, 2));
     res.status(200).json(response);
   } catch (error) {
     console.error('Error fetching incidents:', JSON.stringify(error, null, 2));

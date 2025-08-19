@@ -54,6 +54,40 @@ function MapView({ selectedIncident, onMarkerClick }) {
   const [openMenuId, setOpenMenuId] = useState(null); // Track which menu is open
   const locationRequestedRef = useRef(false); // Track when user explicitly requests location
 
+  // Check for URL parameters to center map on specific incident
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.hash.replace('#map?', ''));
+    const lat = urlParams.get('lat');
+    const lng = urlParams.get('lng');
+    const incidentId = urlParams.get('incident');
+
+    if (lat && lng && window.mapInstance) {
+      // Center map on the coordinates from URL
+      const latitude = parseFloat(lat);
+      const longitude = parseFloat(lng);
+      
+      setTimeout(() => {
+        window.mapInstance.setView([latitude, longitude], 16, {
+          animate: true,
+          duration: 2
+        });
+      }, 500);
+
+      // If incident ID is provided, try to find and highlight it
+      if (incidentId && incidents.length > 0) {
+        const targetIncident = incidents.find(incident => incident._id === incidentId);
+        if (targetIncident && onMarkerClick) {
+          setTimeout(() => {
+            onMarkerClick(targetIncident);
+          }, 1000);
+        }
+      }
+
+      // Clear URL parameters after processing
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [incidents, onMarkerClick]);
+
   // Get user's current location (always ask for permission)
   const getCurrentLocation = () => {
     setLocationLoading(true);
