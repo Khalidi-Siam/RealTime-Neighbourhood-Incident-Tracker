@@ -493,35 +493,38 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
         </div>
       </div>
       <div className="incident-card__footer">
-        <div className="incident-card__votes">
+        <div className="incident-card__actions">
           <button
-            className={`btn btn--icon ${votes.userVote === 'upvote' ? 'btn--active' : ''}`}
+            className={`btn btn--icon-only ${votes.userVote === 'upvote' ? 'btn--active' : ''}`}
             onClick={() => handleVote('upvote')}
-            title="Upvote"
+            title={`Upvote (${votes.upvotes})`}
           >
-            <span role="img" aria-label="Upvote">👍</span> {votes.upvotes}
+            <span role="img" aria-label="Upvote">👍</span>
+            <span className="vote-count">{votes.upvotes}</span>
           </button>
           <button
-            className={`btn btn--icon ${votes.userVote === 'downvote' ? 'btn--active' : ''}`}
+            className={`btn btn--icon-only ${votes.userVote === 'downvote' ? 'btn--active' : ''}`}
             onClick={() => handleVote('downvote')}
-            title="Downvote"
+            title={`Downvote (${votes.downvotes})`}
           >
-            <span role="img" aria-label="Downvote">👎</span> {votes.downvotes}
+            <span role="img" aria-label="Downvote">👎</span>
+            <span className="vote-count">{votes.downvotes}</span>
           </button>
-        </div>
-        <div className="incident-card__comments">
           <button
-            className="btn btn--icon"
+            className="btn btn--icon-only"
             onClick={() => setShowComments(!showComments)}
             title={showComments ? 'Hide comments' : 'Show comments'}
           >
             <span role="img" aria-label="Comments">💬</span>
-            {showComments ? 'Hide' : 'Show'} Comments
+          </button>
+          <button 
+            className="btn btn--icon-only" 
+            onClick={onSelect} 
+            title="Locate on map"
+          >
+            <span role="img" aria-label="Locate on map">📍</span>
           </button>
         </div>
-        <button className="btn btn--icon" onClick={onSelect} title="Details">
-          <span role="img" aria-label="Details">🔄</span>
-        </button>
       </div>
       {error && <div className="alert alert--error">{error}</div>}
       {showComments && (

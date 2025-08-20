@@ -44,7 +44,7 @@ const createCustomIcon = (severity, isSelected = false, isFalseReport = false) =
   });
 };
 
-function MapView({ selectedIncident, onMarkerClick }) {
+function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
   const { currentUser } = useContext(AuthContext);
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -53,6 +53,7 @@ function MapView({ selectedIncident, onMarkerClick }) {
   const [locationLoading, setLocationLoading] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null); // Track which menu is open
   const locationRequestedRef = useRef(false); // Track when user explicitly requests location
+  const markersRef = useRef({}); // Store marker references
 
   // Check for URL parameters to center map on specific incident
   useEffect(() => {
@@ -329,7 +330,7 @@ function MapView({ selectedIncident, onMarkerClick }) {
   }, []);
 
   // Component to handle incident centering only
-  function MapController({ selectedIncident }) {
+  function MapController({ selectedIncident, centerTrigger }) {
     const map = useMap();
 
     useEffect(() => {
@@ -337,16 +338,24 @@ function MapView({ selectedIncident, onMarkerClick }) {
       window.mapInstance = map;
     }, [map]);
     
-    // Handle selected incident centering (only when incident is selected, not when cleared)
+    // Handle selected incident centering (triggers every time centerTrigger changes)
     useEffect(() => {
       if (selectedIncident && selectedIncident.location.lat && selectedIncident.location.lng) {
         map.flyTo([selectedIncident.location.lat, selectedIncident.location.lng], 15, {
           duration: 1.5,
           easeLinearity: 0.25
         });
+
+        // Auto-open popup for the selected incident after map animation
+        setTimeout(() => {
+          const markerRef = markersRef.current[selectedIncident._id];
+          if (markerRef) {
+            markerRef.openPopup();
+          }
+        }, 1600); // Wait for flyTo animation to complete (1.5s + 100ms buffer)
       }
-      // Don't do anything when selectedIncident becomes null - stay at current location
-    }, [selectedIncident, map]);
+      // Now this will trigger even for the same incident due to centerTrigger dependency
+    }, [selectedIncident, centerTrigger, map]);
 
     return null;
   }
@@ -457,6 +466,11 @@ function MapView({ selectedIncident, onMarkerClick }) {
                 selectedIncident && selectedIncident._id === incident._id,
                 incident.falseFlagVerified
               )}
+              ref={(ref) => {
+                if (ref) {
+                  markersRef.current[incident._id] = ref;
+                }
+              }}
             >
               <Popup className="custom-popup">
                 <div className="popup-content">
@@ -548,6 +562,7 @@ function MapView({ selectedIncident, onMarkerClick }) {
           ))}
         <MapController 
           selectedIncident={selectedIncident} 
+          centerTrigger={centerTrigger}
         />
       </MapContainer>
     </div>

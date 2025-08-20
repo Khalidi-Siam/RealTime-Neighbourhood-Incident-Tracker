@@ -8,17 +8,31 @@ import Modal from '../components/Modal.jsx';
 function Home() {
   const { currentUser } = useContext(AuthContext);
   const [selectedIncident, setSelectedIncident] = useState(null);
+  const [centeredIncident, setCenteredIncident] = useState(null);
+  const [centerTrigger, setCenterTrigger] = useState(0); // Add trigger counter
+
+  // Function to center map on incident without opening details modal
+  const handleIncidentCenter = (incident) => {
+    setCenteredIncident(incident);
+    setCenterTrigger(prev => prev + 1); // Force re-trigger even for same incident
+  };
+
+  // Function to open incident details modal
+  const handleIncidentDetails = (incident) => {
+    setSelectedIncident(incident);
+  };
 
   return (
     <div className="map-container">
       <MapSidebar 
-        onIncidentSelect={setSelectedIncident} 
-        selectedIncident={selectedIncident}
+        onIncidentSelect={handleIncidentCenter} 
+        selectedIncident={centeredIncident}
       />
       
       <MapView 
-        selectedIncident={selectedIncident} 
-        onMarkerClick={setSelectedIncident} 
+        selectedIncident={centeredIncident} 
+        centerTrigger={centerTrigger}
+        onMarkerClick={handleIncidentDetails} 
       />
       
       <Modal

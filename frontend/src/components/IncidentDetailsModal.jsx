@@ -43,36 +43,36 @@ function IncidentDetailsModal({ incident, onClose }) {
     fetchDetails();
   }, [incident]);
 
-  const handleDelete = async () => {
-    if (!currentUser || currentUser.role !== 'admin') {
-      setError('Only admins can delete incidents');
-      return;
-    }
+  // const handleDelete = async () => {
+  //   if (!currentUser || currentUser.role !== 'admin') {
+  //     setError('Only admins can delete incidents');
+  //     return;
+  //   }
 
-    setError('');
-    setSuccess('');
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3000/api/incidents/${incident._id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to delete incident');
-      }
-      setSuccess(data.message);
-      setTimeout(() => {
-        onClose();
-        window.dispatchEvent(new CustomEvent('incidentCreated')); // Trigger refresh
-      }, 1000);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+  //   setError('');
+  //   setSuccess('');
+  //   try {
+  //     const token = localStorage.getItem('token');
+  //     const response = await fetch(`http://localhost:3000/api/incidents/${incident._id}`, {
+  //       method: 'DELETE',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         Authorization: `Bearer ${token}`,
+  //       },
+  //     });
+  //     const data = await response.json();
+  //     if (!response.ok) {
+  //       throw new Error(data.message || 'Failed to delete incident');
+  //     }
+  //     setSuccess(data.message);
+  //     setTimeout(() => {
+  //       onClose();
+  //       window.dispatchEvent(new CustomEvent('incidentCreated')); // Trigger refresh
+  //     }, 1000);
+  //   } catch (err) {
+  //     setError(err.message);
+  //   }
+  // };
 
   if (loading) return <div className="loading">Loading...</div>;
   if (!details) return null;
@@ -101,11 +101,11 @@ function IncidentDetailsModal({ incident, onClose }) {
         <span>{details.votes.upvotes} Upvotes</span>
         <span>{details.votes.downvotes} Downvotes</span>
       </div>
-      {currentUser && currentUser.role === 'admin' && (
+      {/* {currentUser && currentUser.role === 'admin' && (
         <button className="btn btn--error" onClick={handleDelete}>
           Delete Incident
         </button>
-      )}
+      )} */}
     </div>
   );
 }

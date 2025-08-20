@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import Home from './pages/Home.jsx';
 import Feed from './pages/Feed.jsx';
@@ -9,7 +9,53 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
-  const [currentView, setCurrentView] = useState('map');
+  // Initialize currentView from localStorage or URL hash, fallback to 'map'
+  const getInitialView = () => {
+    // Check URL hash first
+    const hash = window.location.hash.slice(1);
+    if (hash && ['map', 'feed', 'profile', 'admin'].includes(hash)) {
+      return hash;
+    }
+    
+    // Check localStorage
+    const savedView = localStorage.getItem('currentView');
+    if (savedView && ['map', 'feed', 'profile', 'admin'].includes(savedView)) {
+      return savedView;
+    }
+    
+    return 'map';
+  };
+
+  const [currentView, setCurrentView] = useState(getInitialView);
+
+  // Handle view changes - save to localStorage and update URL
+  const handleViewChange = (newView) => {
+    setCurrentView(newView);
+    localStorage.setItem('currentView', newView);
+    window.location.hash = newView;
+  };
+
+  // Listen for browser back/forward navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1);
+      if (hash && ['map', 'feed', 'profile', 'admin'].includes(hash)) {
+        setCurrentView(hash);
+        localStorage.setItem('currentView', hash);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    
+    // Set initial hash if none exists
+    if (!window.location.hash) {
+      window.location.hash = currentView;
+    }
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, [currentView]);
 
   const renderView = () => {
     switch (currentView) {
@@ -30,7 +76,7 @@ function App() {
     <ThemeProvider>
       {/* Navigation Header */}
       <header className="header">
-        <Nav currentView={currentView} onViewChange={setCurrentView} />
+        <Nav currentView={currentView} onViewChange={handleViewChange} />
       </header>
 
       {/* Main Content */}
