@@ -1,13 +1,14 @@
 import { useState, useEffect, useContext, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker, useMapEvents } from 'react-leaflet';
 import { AuthContext } from '../context/AuthContext.jsx';
 import ReportModal from './ReportModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
 import PopupContent from './PopupContent.jsx';
+import MapClickModal from './MapClickModal.jsx';
 import useReportStatus from '../hooks/useReportStatus.jsx';
 import useReportCheck from '../hooks/useReportCheck.jsx';
-import { handleReportAction, canDeleteIncident } from '../utils/incidentActions.js';
+import { handleReportAction, canDeleteIncident, canReportIncident } from '../utils/incidentActions.js';
 import { toast } from 'react-toastify';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -66,7 +67,9 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
   // Modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showMapClickModal, setShowMapClickModal] = useState(false);
   const [selectedIncidentForAction, setSelectedIncidentForAction] = useState(null);
+  const [clickedLocation, setClickedLocation] = useState(null);
 
   // Check for URL parameters to center map on specific incident
   useEffect(() => {
@@ -393,6 +396,49 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
     return null;
   }
 
+  // Component to handle map clicks for reporting incidents
+  function MapClickHandler() {
+    const { currentUser } = useContext(AuthContext);
+    
+    useMapEvents({
+      click: async (e) => {
+        // Only allow click-to-report if user is logged in
+        if (!currentUser) {
+          toast.info('Please log in to report incidents', {
+            position: "top-right",
+            autoClose: 3000,
+          });
+          return;
+        }
+
+        const { lat, lng } = e.latlng;
+        
+        // Try to get address from coordinates using reverse geocoding
+        let address = '';
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
+          );
+          const data = await response.json();
+          if (data && data.display_name) {
+            address = data.display_name;
+          }
+        } catch (error) {
+          console.log('Could not get address for coordinates:', error);
+        }
+
+        setClickedLocation({
+          lat: lat,
+          lng: lng,
+          address: address || 'Selected location on map'
+        });
+        setShowMapClickModal(true);
+      }
+    });
+
+    return null;
+  }
+
   return (
     <div className="map-main">
       {loading && <div className="map-loading">
@@ -521,6 +567,7 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
           selectedIncident={selectedIncident} 
           centerTrigger={centerTrigger}
         />
+        <MapClickHandler />
       </MapContainer>
 
       {/* Render modals using portal to ensure proper positioning */}
@@ -544,6 +591,19 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
           onClose={() => setShowReportModal(false)}
           incident={selectedIncidentForAction}
           onReportSubmitted={handleReportSubmitted}
+        />,
+        document.body
+      )}
+
+      {createPortal(
+        <MapClickModal
+          isOpen={showMapClickModal}
+          onClose={() => {
+            setShowMapClickModal(false);
+            setClickedLocation(null);
+          }}
+          coordinates={clickedLocation || { lat: 0, lng: 0 }}
+          address={clickedLocation?.address}
         />,
         document.body
       )}

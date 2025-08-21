@@ -143,21 +143,29 @@ function Nav({ currentView, onViewChange }) {
         <AuthForm onClose={() => setIsAuthModalOpen(false)} />
       </Modal>
 
-      <Modal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        title="Report New Incident"
-      >
-        <ReportIncidentForm onClose={() => setIsReportModalOpen(false)} />
-      </Modal>
-
-      <Modal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        title="Report New Incident"
-      >
-        <ReportIncidentForm onClose={() => setIsReportModalOpen(false)} />
-      </Modal>
+      {/* Regular Report Incident Modal */}
+      {isReportModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsReportModalOpen(false)}>
+          <div className="modal-content modal-content--large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">
+                <span className="modal-icon">📝</span>
+                Report Incident
+              </h2>
+              <button 
+                className="modal-close" 
+                onClick={() => setIsReportModalOpen(false)}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <ReportIncidentForm onClose={() => setIsReportModalOpen(false)} />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

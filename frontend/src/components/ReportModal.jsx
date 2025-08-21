@@ -9,11 +9,11 @@ const ReportModal = ({ isOpen, onClose, incident, onReportSubmitted }) => {
   const [selectedReason, setSelectedReason] = useState('');
 
   const predefinedReasons = [
-    'False information',
-    'Spam content',
-    'Inappropriate content',
-    'Misleading information',
-    'Other'
+    { value: 'False information', icon: '❌', description: 'Contains incorrect or misleading information' },
+    { value: 'Spam content', icon: '📧', description: 'Irrelevant or repetitive content' },
+    { value: 'Inappropriate content', icon: '🚫', description: 'Contains offensive or inappropriate material' },
+    { value: 'Misleading information', icon: '⚠️', description: 'Deliberately deceptive content' },
+    { value: 'Other', icon: '📝', description: 'Specify your own reason' }
   ];
 
   const handleSubmit = async (e) => {
@@ -44,7 +44,7 @@ const ReportModal = ({ isOpen, onClose, incident, onReportSubmitted }) => {
         throw new Error(data.message || 'Failed to submit report');
       }
 
-      toast.success('Report submitted successfully. Admins will review it shortly.', {
+      toast.success('🎉 Report submitted successfully. Admins will review it shortly.', {
         position: "top-right",
         autoClose: 4000,
         hideProgressBar: false,
@@ -66,7 +66,7 @@ const ReportModal = ({ isOpen, onClose, incident, onReportSubmitted }) => {
 
     } catch (err) {
       console.error('Report error:', err);
-      toast.error('Error: ' + err.message, {
+      toast.error('❌ Error: ' + err.message, {
         position: "top-right",
         autoClose: 4000,
         hideProgressBar: false,
@@ -90,80 +90,126 @@ const ReportModal = ({ isOpen, onClose, incident, onReportSubmitted }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={handleClose}>
-      <div className="modal modal--report" onClick={(e) => e.stopPropagation()}>
-        <div className="modal__header">
-          <h3 className="modal__title">Report Incident to Admin</h3>
-          <button 
-            className="modal__close" 
-            onClick={handleClose}
-            disabled={isSubmitting}
-            aria-label="Close modal"
-          >
-            ×
-          </button>
-        </div>
+    <div className="modern-modal" onClick={handleClose}>
+      <div className="modern-modal__backdrop"></div>
+      <div className="modern-modal__content" onClick={(e) => e.stopPropagation()}>
+        <button 
+          className="modern-modal__close" 
+          onClick={handleClose}
+          disabled={isSubmitting}
+          aria-label="Close modal"
+        >
+          ✕
+        </button>
         
-        <div className="modal__content">
-          <div className="report-modal__incident-info">
-            <h4>Incident: {incident?.title}</h4>
-            <p>Reported by: {incident?.submittedBy?.username}</p>
-            <p>Date: {new Date(incident?.timestamp).toLocaleDateString()}</p>
+        <div className="modern-report-modal">
+          <div className="modern-report-modal__header">
+            <h3 className="modern-report-modal__title">
+              <span className="modern-report-modal__icon">🚨</span>
+              Report Incident to Admin
+            </h3>
+            <p className="modern-report-modal__subtitle">
+              Help us maintain community safety by reporting suspicious content
+            </p>
+          </div>
+          
+          <div className="modern-incident-preview">
+            <div className="modern-incident-preview__item">
+              <span className="modern-incident-preview__label">Incident:</span>
+              <span className="modern-incident-preview__value">{incident?.title}</span>
+            </div>
+            <div className="modern-incident-preview__item">
+              <span className="modern-incident-preview__label">Reported by:</span>
+              <span className="modern-incident-preview__value">{incident?.submittedBy?.username}</span>
+            </div>
+            <div className="modern-incident-preview__item">
+              <span className="modern-incident-preview__label">Date:</span>
+              <span className="modern-incident-preview__value">{new Date(incident?.timestamp).toLocaleDateString()}</span>
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="report-form">
-            <div className="form-group">
-              <label className="form-label">Reason for reporting:</label>
-              <div className="reason-options">
+          <form onSubmit={handleSubmit} className="modern-report-modal__form">
+            <div className="modern-form-group">
+              <label className="modern-form-label">
+                <span className="modern-form-label__icon">📋</span>
+                Reason for reporting:
+              </label>
+              <div className="modern-reason-grid">
                 {predefinedReasons.map((reasonOption) => (
                   <div
-                    key={reasonOption}
-                    className={`reason-option ${selectedReason === reasonOption ? 'reason-option--selected' : ''}`}
-                    onClick={() => !isSubmitting && setSelectedReason(reasonOption)}
+                    key={reasonOption.value}
+                    className={`modern-reason-card ${selectedReason === reasonOption.value ? 'modern-reason-card--selected' : ''}`}
+                    onClick={() => !isSubmitting && setSelectedReason(reasonOption.value)}
                   >
-                    <span className="reason-option__text">{reasonOption}</span>
+                    <div className="modern-reason-card__icon">{reasonOption.icon}</div>
+                    <div className="modern-reason-card__content">
+                      <div className="modern-reason-card__title">{reasonOption.value}</div>
+                      <div className="modern-reason-card__description">{reasonOption.description}</div>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
             {selectedReason === 'Other' && (
-              <div className="form-group">
-                <label htmlFor="customReason" className="form-label">
-                  Please specify:
+              <div className="modern-form-group">
+                <label htmlFor="customReason" className="modern-form-label">
+                  <span className="modern-form-label__icon">✍️</span>
+                  Please specify your reason:
                 </label>
-                <textarea
-                  id="customReason"
-                  className="form-textarea"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Please describe why you're reporting this incident..."
-                  rows="4"
-                  disabled={isSubmitting}
-                  required
-                />
+                <div className="modern-form-textarea-wrapper">
+                  <textarea
+                    id="customReason"
+                    className="modern-form-textarea"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Please describe why you're reporting this incident..."
+                    rows="4"
+                    disabled={isSubmitting}
+                    required
+                  />
+                </div>
               </div>
             )}
 
-            <div className="report-modal__warning">
-              <p>⚠️ Please ensure your report is legitimate. False reports may result in account restrictions.</p>
+            <div className="modern-warning-card">
+              <div className="modern-warning-card__icon">⚠️</div>
+              <div className="modern-warning-card__content">
+                <p className="modern-warning-card__text">
+                  Please ensure your report is legitimate. False reports may result in account restrictions.
+                </p>
+              </div>
             </div>
 
-            <div className="modal__footer">
+            <div className="modern-actions">
               <button
                 type="button"
-                className="btn btn--secondary"
+                className="modern-btn modern-btn--outline"
                 onClick={handleClose}
                 disabled={isSubmitting}
               >
+                <span className="modern-btn__icon">✕</span>
                 Cancel
               </button>
+              
+              <div className="modern-actions__spacer"></div>
+              
               <button
                 type="submit"
-                className="btn btn--danger"
+                className={`modern-btn modern-btn--danger ${isSubmitting ? 'modern-btn--loading' : ''}`}
                 disabled={isSubmitting || (!selectedReason && !reason.trim())}
               >
-                {isSubmitting ? 'Submitting...' : 'Submit Report'}
+                {isSubmitting ? (
+                  <>
+                    <span className="modern-btn__spinner"></span>
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <span className="modern-btn__icon">🚨</span>
+                    Submit Report
+                  </>
+                )}
               </button>
             </div>
           </form>

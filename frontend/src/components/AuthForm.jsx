@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useMemo } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { toast } from 'react-toastify';
 
@@ -14,6 +14,37 @@ function AuthForm({ onClose }) {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Password strength calculator
+  const passwordStrength = useMemo(() => {
+    const pwd = formData.password || '';
+    let score = 0;
+    if (pwd.length >= 6) score += 1;
+    if (/[A-Z]/.test(pwd)) score += 1;
+    if (/[a-z]/.test(pwd)) score += 1;
+    if (/\d/.test(pwd)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+    
+    const percentage = (score / 5) * 100;
+    let label = 'Very Weak';
+    let color = '#ef4444';
+    
+    if (score >= 4) {
+      label = 'Strong';
+      color = '#22c55e';
+    } else if (score === 3) {
+      label = 'Medium';
+      color = '#f59e0b';
+    } else if (score === 2) {
+      label = 'Weak';
+      color = '#f97316';
+    }
+    
+    return { percentage, label, color, score };
+  }, [formData.password]);
 
   console.log('AuthForm rendered: activeTab=', activeTab, 'formData=', formData);
 
@@ -29,218 +60,427 @@ function AuthForm({ onClose }) {
     e.stopPropagation();
     setError('');
     setSuccess('');
+    setIsLoading(true);
     console.log('Form submitted: activeTab=', activeTab, 'formData=', formData);
 
-    if (activeTab === 'login') {
-      const result = await login(formData.email, formData.password);
-      if (result.success) {
-        setSuccess(result.message);
-        console.log('Login successful:', result.message);
-        
-        // Show success toast
-        toast.success('Login successful! Welcome back!', {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+    try {
+      if (activeTab === 'login') {
+        const result = await login(formData.email, formData.password);
+        if (result.success) {
+          setSuccess(result.message);
+          console.log('Login successful:', result.message);
+          
+          // Show success toast
+          toast.success('🎉 Welcome back! Login successful!', {
+            position: "top-right",
+            autoClose: 3000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
 
-        setTimeout(() => {
-          console.log('Closing modal after login');
-          onClose();
-        }, 1000);
+          setTimeout(() => {
+            console.log('Closing modal after login');
+            onClose();
+          }, 1000);
+        } else {
+          setError(result.message);
+          console.log('Login failed:', result.message);
+          
+          // Show error toast
+          toast.error('❌ Login failed: ' + result.message, {
+            position: "top-right",
+            autoClose: 4000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+        }
       } else {
-        setError(result.message);
-        console.log('Login failed:', result.message);
+        if (formData.password !== formData.confirmPassword) {
+          setError('Passwords do not match');
+          console.log('Register failed: Passwords do not match');
+          
+          // Show error toast
+          toast.error('❌ Passwords do not match', {
+            position: "top-right",
+            autoClose: 4000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+          return;
+        }
         
-        // Show error toast
-        toast.error('Login failed: ' + result.message, {
-          position: "top-right",
-          autoClose: 4000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
-      }
-    } else {
-      if (formData.password !== formData.confirmPassword) {
-        setError('Passwords do not match');
-        console.log('Register failed: Passwords do not match');
+        if (passwordStrength.score < 2) {
+          setError('Password is too weak. Please use a stronger password.');
+          toast.error('❌ Password is too weak. Please use a stronger password.', {
+            position: "top-right",
+            autoClose: 4000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+          return;
+        }
         
-        // Show error toast
-        toast.error('Passwords do not match', {
-          position: "top-right",
-          autoClose: 4000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
-        return;
-      }
-      const result = await register(formData.username, formData.email, formData.phone, formData.password);
-      if (result.success) {
-        setSuccess(result.message);
-        console.log('Register successful:', result.message);
-        
-        // Show success toast
-        toast.success('Registration successful! Welcome to the platform!', {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        const result = await register(formData.username, formData.email, formData.phone, formData.password);
+        if (result.success) {
+          setSuccess(result.message);
+          console.log('Register successful:', result.message);
+          
+          // Show success toast
+          toast.success('🎉 Welcome to the platform! Registration successful!', {
+            position: "top-right",
+            autoClose: 3000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
 
-        setTimeout(() => {
-          console.log('Closing modal after register');
-          onClose();
-        }, 1000);
-      } else {
-        setError(result.message);
-        console.log('Register failed:', result.message);
-        
-        // Show error toast
-        toast.error('Registration failed: ' + result.message, {
-          position: "top-right",
-          autoClose: 4000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+          setTimeout(() => {
+            console.log('Closing modal after register');
+            onClose();
+          }, 1000);
+        } else {
+          setError(result.message);
+          console.log('Register failed:', result.message);
+          
+          // Show error toast
+          toast.error('❌ Registration failed: ' + result.message, {
+            position: "top-right",
+            autoClose: 4000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+        }
       }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      setError('An unexpected error occurred. Please try again.');
+      toast.error('❌ An unexpected error occurred. Please try again.', {
+        position: "top-right",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div 
-      className="auth" 
+      className="modern-auth" 
       data-testid="auth-form"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="auth__tabs">
-        <button
-          className={`auth__tab ${activeTab === 'login' ? 'auth__tab--active' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            console.log('Switching to login tab');
-            setActiveTab('login');
-          }}
-        >
-          Login
-        </button>
-        <button
-          className={`auth__tab ${activeTab === 'register' ? 'auth__tab--active' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            console.log('Switching to register tab');
-            setActiveTab('register');
-          }}
-        >
-          Register
-        </button>
+      {/* Header with animated tabs */}
+      <div className="modern-auth__header">
+        <div className="modern-auth__tabs">
+          <button
+            className={`modern-auth__tab ${activeTab === 'login' ? 'modern-auth__tab--active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('Switching to login tab');
+              setActiveTab('login');
+              setError('');
+              setSuccess('');
+            }}
+            disabled={isLoading}
+          >
+            <span className="modern-auth__tab-icon">👤</span>
+            Sign In
+          </button>
+          <button
+            className={`modern-auth__tab ${activeTab === 'register' ? 'modern-auth__tab--active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('Switching to register tab');
+              setActiveTab('register');
+              setError('');
+              setSuccess('');
+            }}
+            disabled={isLoading}
+          >
+            <span className="modern-auth__tab-icon">✨</span>
+            Sign Up
+          </button>
+        </div>
+        <div className="modern-auth__tab-indicator"></div>
       </div>
 
-      {error && <div className="alert alert--error">{error}</div>}
-      {success && <div className="alert alert--success">{success}</div>}
+      {/* Alert Messages */}
+      {error && (
+        <div className="modern-alert modern-alert--error" role="alert">
+          <span className="modern-alert__icon">❌</span>
+          <span className="modern-alert__message">{error}</span>
+        </div>
+      )}
+      {success && (
+        <div className="modern-alert modern-alert--success" role="alert">
+          <span className="modern-alert__icon">✅</span>
+          <span className="modern-alert__message">{success}</span>
+        </div>
+      )}
 
+      {/* Login Form */}
       {activeTab === 'login' ? (
-        <form className="auth__form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              required
-            />
+        <form className="modern-auth__form" onSubmit={handleSubmit}>
+          <div className="modern-form-group">
+            <label htmlFor="email" className="modern-form-label">
+              <span className="modern-form-label__icon">📧</span>
+              Email Address
+            </label>
+            <div className="modern-form-input-wrapper">
+              <input
+                type="email"
+                id="email"
+                name="email"
+                className="modern-form-input"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="Enter your email"
+                required
+                disabled={isLoading}
+                autoComplete="email"
+              />
+            </div>
           </div>
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              required
-            />
+          
+          <div className="modern-form-group">
+            <label htmlFor="password" className="modern-form-label">
+              <span className="modern-form-label__icon">🔒</span>
+              Password
+            </label>
+            <div className="modern-form-input-wrapper">
+              <input
+                type={showPassword ? "text" : "password"}
+                id="password"
+                name="password"
+                className="modern-form-input"
+                value={formData.password}
+                onChange={handleInputChange}
+                placeholder="Enter your password"
+                required
+                disabled={isLoading}
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="modern-form-input__toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={isLoading}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
           </div>
-          <button type="submit" className="btn btn--primary">
-            Login
+          
+          <button 
+            type="submit" 
+            className={`modern-btn modern-btn--primary modern-btn--full ${isLoading ? 'modern-btn--loading' : ''}`}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <span className="modern-btn__spinner"></span>
+                Signing in...
+              </>
+            ) : (
+              <>
+                <span className="modern-btn__icon">🚀</span>
+                Sign In
+              </>
+            )}
           </button>
-          <a href="#" className="auth__forgot">
-            Forgot password?
-          </a>
+          
+          <div className="modern-auth__footer">
+            <a href="#" className="modern-auth__link" onClick={(e) => e.preventDefault()}>
+              Forgot your password?
+            </a>
+          </div>
         </form>
       ) : (
-        <form className="auth__form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="username">Full Name</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleInputChange}
-              required
-            />
+        /* Register Form */
+        <form className="modern-auth__form" onSubmit={handleSubmit}>
+          <div className="modern-form-group">
+            <label htmlFor="username" className="modern-form-label">
+              <span className="modern-form-label__icon">👤</span>
+              Full Name
+            </label>
+            <div className="modern-form-input-wrapper">
+              <input
+                type="text"
+                id="username"
+                name="username"
+                className="modern-form-input"
+                value={formData.username}
+                onChange={handleInputChange}
+                placeholder="Enter your full name"
+                required
+                disabled={isLoading}
+                autoComplete="name"
+              />
+            </div>
           </div>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              required
-            />
+          
+          <div className="modern-form-group">
+            <label htmlFor="email" className="modern-form-label">
+              <span className="modern-form-label__icon">📧</span>
+              Email Address
+            </label>
+            <div className="modern-form-input-wrapper">
+              <input
+                type="email"
+                id="email"
+                name="email"
+                className="modern-form-input"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="Enter your email"
+                required
+                disabled={isLoading}
+                autoComplete="email"
+              />
+            </div>
           </div>
-          <div className="form-group">
-            <label htmlFor="phone">Phone</label>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              value={formData.phone}
-              onChange={handleInputChange}
-              placeholder="01XXXXXXXXX"
-              required
-            />
+          
+          <div className="modern-form-group">
+            <label htmlFor="phone" className="modern-form-label">
+              <span className="modern-form-label__icon">📱</span>
+              Phone Number
+            </label>
+            <div className="modern-form-input-wrapper">
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                className="modern-form-input"
+                value={formData.phone}
+                onChange={handleInputChange}
+                placeholder="01XXXXXXXXX"
+                required
+                disabled={isLoading}
+                autoComplete="tel"
+              />
+            </div>
           </div>
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              required
-            />
-            <div className="password-strength">Password strength</div>
+          
+          <div className="modern-form-group">
+            <label htmlFor="password" className="modern-form-label">
+              <span className="modern-form-label__icon">🔒</span>
+              Password
+            </label>
+            <div className="modern-form-input-wrapper">
+              <input
+                type={showPassword ? "text" : "password"}
+                id="password"
+                name="password"
+                className="modern-form-input"
+                value={formData.password}
+                onChange={handleInputChange}
+                placeholder="Create a strong password"
+                required
+                disabled={isLoading}
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                className="modern-form-input__toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={isLoading}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
+            {formData.password && (
+              <div className="modern-password-strength">
+                <div className="modern-password-strength__bar">
+                  <div 
+                    className="modern-password-strength__fill"
+                    style={{ 
+                      width: `${passwordStrength.percentage}%`,
+                      backgroundColor: passwordStrength.color
+                    }}
+                  ></div>
+                </div>
+                <span 
+                  className="modern-password-strength__text"
+                  style={{ color: passwordStrength.color }}
+                >
+                  Strength: {passwordStrength.label}
+                </span>
+              </div>
+            )}
           </div>
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password</label>
-            <input
-              type="password"
-              id="confirmPassword"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleInputChange}
-              required
-            />
+          
+          <div className="modern-form-group">
+            <label htmlFor="confirmPassword" className="modern-form-label">
+              <span className="modern-form-label__icon">🔐</span>
+              Confirm Password
+            </label>
+            <div className="modern-form-input-wrapper">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                id="confirmPassword"
+                name="confirmPassword"
+                className="modern-form-input"
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                placeholder="Confirm your password"
+                required
+                disabled={isLoading}
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                className="modern-form-input__toggle"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                disabled={isLoading}
+                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+              >
+                {showConfirmPassword ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
+            {formData.confirmPassword && formData.password && (
+              <div className={`modern-form-validation ${formData.password === formData.confirmPassword ? 'modern-form-validation--success' : 'modern-form-validation--error'}`}>
+                {formData.password === formData.confirmPassword ? (
+                  <>✅ Passwords match</>
+                ) : (
+                  <>❌ Passwords don't match</>
+                )}
+              </div>
+            )}
           </div>
-          <button type="submit" className="btn btn--primary">
-            Create Account
+          
+          <button 
+            type="submit" 
+            className={`modern-btn modern-btn--primary modern-btn--full ${isLoading ? 'modern-btn--loading' : ''}`}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <span className="modern-btn__spinner"></span>
+                Creating account...
+              </>
+            ) : (
+              <>
+                <span className="modern-btn__icon">✨</span>
+                Create Account
+              </>
+            )}
           </button>
         </form>
       )}
