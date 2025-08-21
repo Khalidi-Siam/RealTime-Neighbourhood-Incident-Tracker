@@ -1,6 +1,14 @@
 import { useState, useEffect, useContext, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker } from 'react-leaflet';
 import { AuthContext } from '../context/AuthContext.jsx';
+import ReportModal from './ReportModal.jsx';
+import ConfirmModal from './ConfirmModal.jsx';
+import PopupContent from './PopupContent.jsx';
+import useReportStatus from '../hooks/useReportStatus.jsx';
+import useReportCheck from '../hooks/useReportCheck.jsx';
+import { handleReportAction, canDeleteIncident } from '../utils/incidentActions.js';
+import { toast } from 'react-toastify';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -45,7 +53,7 @@ const createCustomIcon = (severity, isSelected = false, isFalseReport = false) =
 };
 
 function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
-  const { currentUser } = useContext(AuthContext);
+  const { currentUser, token } = useContext(AuthContext);
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -54,6 +62,11 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
   const [openMenuId, setOpenMenuId] = useState(null); // Track which menu is open
   const locationRequestedRef = useRef(false); // Track when user explicitly requests location
   const markersRef = useRef({}); // Store marker references
+  
+  // Modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedIncidentForAction, setSelectedIncidentForAction] = useState(null);
 
   // Check for URL parameters to center map on specific incident
   useEffect(() => {
@@ -84,8 +97,10 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
         }
       }
 
-      // Clear URL parameters after processing
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Clear URL parameters after processing, but preserve the base view
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, window.location.pathname + '#map');
+      }, 2000); // Give time for map animation and incident selection
     }
   }, [incidents, onMarkerClick]);
 
@@ -246,12 +261,7 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
 
   // Delete incident function
   const handleDeleteIncident = async (incidentId) => {
-    if (!window.confirm('Are you sure you want to delete this incident? This action cannot be undone.')) {
-      return;
-    }
-
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:3000/api/incidents/${incidentId}`, {
         method: 'DELETE',
         headers: {
@@ -266,43 +276,66 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
         throw new Error(data.message || 'Failed to delete incident');
       }
 
-      // Refresh incidents list
-      fetchIncidents();
+      // Close modals
+      setShowConfirmModal(false);
       setOpenMenuId(null);
       
-      // Show success message
-      alert('Incident deleted successfully');
+      // Show success toast
+      toast.success('Incident deleted successfully', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+
+      // Refresh incidents list
+      fetchIncidents();
+      
+      // Trigger page refresh or parent component update
+      window.dispatchEvent(new CustomEvent('incidentDeleted', { detail: incidentId }));
     } catch (err) {
-      alert('Error: ' + err.message);
+      setShowConfirmModal(false);
+      toast.error('Error: ' + err.message, {
+        position: "top-right",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     }
   };
 
-  // Handle report to admin (placeholder for now)
-  const handleReportToAdmin = (incidentId) => {
-    alert('Report to admin feature will be implemented soon.');
+  // Handle report to admin with validation
+  const handleReportToAdmin = async (incident) => {
+    // All validation is now handled in PopupContent component
+    setSelectedIncidentForAction(incident);
     setOpenMenuId(null);
+    setShowReportModal(true);
+  };
+
+  // Show delete confirmation
+  const showDeleteConfirmation = (incident) => {
+    setSelectedIncidentForAction(incident);
+    setOpenMenuId(null);
+    setShowConfirmModal(true);
+  };
+
+  // Handle report status refresh (callback for when report is submitted)
+  const handleReportSubmitted = () => {
+    fetchIncidents(); // Refresh incidents to get updated report status
   };
 
   // Check if user can delete incident (admin or owner)
-  const canDeleteIncident = (incident) => {
-    if (!currentUser) {
-      console.log('No current user');
-      return false;
-    }
-    console.log('Current user:', currentUser);
-    console.log('Incident submittedBy:', incident.submittedBy);
-    console.log('Can delete:', currentUser.role === 'admin' || incident.submittedBy._id === currentUser.id);
-    return currentUser.role === 'admin' || incident.submittedBy._id === currentUser.id;
+  const checkCanDeleteIncident = (incident) => {
+    return canDeleteIncident(incident, currentUser);
   };
 
-  // Check if user can report incident (user role only)
-  const canReportIncident = (incident) => {
-    if (!currentUser) {
-      console.log('No current user for report');
-      return false;
-    }
-    console.log('Can report:', currentUser.role === 'user');
-    return currentUser.role === 'user';
+  // Check if user can report incident (user role only, not their own incident, haven't reported already)
+  const checkCanReportIncident = (incident) => {
+    return canReportIncident(incident, currentUser);
   };
 
   useEffect(() => {
@@ -473,90 +506,14 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
               }}
             >
               <Popup className="custom-popup">
-                <div className="popup-content">
-                  {/* False Report Banner */}
-                  {incident.falseFlagVerified && (
-                    <div className="popup-false-banner">
-                      <span className="popup-false-icon">⚠️</span>
-                      <span className="popup-false-text">FALSE REPORT - Verified by Admin</span>
-                    </div>
-                  )}
-                  
-                  <div className="popup-header">
-                    <div className="popup-header-left">
-                      <h3 className={incident.falseFlagVerified ? 'popup-title--false' : ''}>{incident.title}</h3>
-                      <span className={`severity-badge ${incident.severity.toLowerCase()}`}>
-                        {incident.severity}
-                      </span>
-                    </div>
-                    {/* 3-dot menu */}
-                    {currentUser ? (
-                      <div className="popup-menu">
-                        <button 
-                          className="menu-trigger"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuId(openMenuId === incident._id ? null : incident._id);
-                          }}
-                          aria-label="More options"
-                        >
-                          ⋮
-                        </button>
-                        {openMenuId === incident._id && (
-                          <div className="menu-dropdown">
-                            {canDeleteIncident(incident) && (
-                              <button 
-                                className="menu-item menu-item--delete"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteIncident(incident._id);
-                                }}
-                              >
-                                🗑️ Delete
-                              </button>
-                            )}
-                            {canReportIncident(incident) && (
-                              <button 
-                                className="menu-item menu-item--report"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleReportToAdmin(incident._id);
-                                }}
-                                disabled
-                              >
-                                🚨 Report to Admin
-                              </button>
-                            )}
-                            {!canDeleteIncident(incident) && !canReportIncident(incident) && (
-                              <div className="menu-item" style={{color: '#999', cursor: 'default'}}>
-                                No actions available
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div style={{fontSize: '12px', color: '#999'}}>
-                        Login required
-                      </div>
-                    )}
-                  </div>
-                  <div className="popup-body">
-                    <p className="category">📂 {incident.category}</p>
-                    <p className="votes">
-                      👍 {incident.votes.upvotes} | 👎 {incident.votes.downvotes}
-                    </p>
-                    <p className="date">
-                      📅 {new Date(incident.timestamp).toLocaleDateString()} at {new Date(incident.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                  <button
-                    className="popup-btn"
-                    onClick={() => onMarkerClick(incident)}
-                  >
-                    View Details →
-                  </button>
-                </div>
+                <PopupContent
+                  incident={incident}
+                  openMenuId={openMenuId}
+                  setOpenMenuId={setOpenMenuId}
+                  onDeleteConfirmation={showDeleteConfirmation}
+                  onReportToAdmin={handleReportToAdmin}
+                  onMarkerClick={onMarkerClick}
+                />
               </Popup>
             </Marker>
           ))}
@@ -565,6 +522,31 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
           centerTrigger={centerTrigger}
         />
       </MapContainer>
+
+      {/* Render modals using portal to ensure proper positioning */}
+      {createPortal(
+        <ConfirmModal
+          isOpen={showConfirmModal}
+          onClose={() => setShowConfirmModal(false)}
+          onConfirm={() => selectedIncidentForAction && handleDeleteIncident(selectedIncidentForAction._id)}
+          title="Delete Incident"
+          message="Are you sure you want to delete this incident? This action cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
+          type="danger"
+        />,
+        document.body
+      )}
+
+      {createPortal(
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          incident={selectedIncidentForAction}
+          onReportSubmitted={handleReportSubmitted}
+        />,
+        document.body
+      )}
     </div>
   );
 }

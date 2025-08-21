@@ -6,6 +6,7 @@ import CommentForm from './CommentForm.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
 import ReportModal from './ReportModal.jsx';
 import useReportStatus from '../hooks/useReportStatus.jsx';
+import { handleReportAction, canDeleteIncident } from '../utils/incidentActions.js';
 import { toast } from 'react-toastify';
 import jsPDF from 'jspdf';
 
@@ -50,13 +51,12 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
   const categoryInfo = getCategoryConfig(incident.category);
 
   // Check if user can delete incident (admin or owner)
-  const canDeleteIncident = () => {
-    if (!currentUser) return false;
-    return currentUser.role === 'admin' || incident.submittedBy._id === currentUser.id;
+  const checkCanDeleteIncident = () => {
+    return canDeleteIncident(incident, currentUser);
   };
 
   // Check if user can report incident (user role only, not their own incident, haven't reported already)
-  const canReportIncident = () => {
+  const checkCanReportIncident = () => {
     if (!currentUser) return false;
     if (currentUser.role !== 'user') return false;
     if (incident.submittedBy._id === currentUser.id) return false;
@@ -118,8 +118,22 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
 
   // Handle report to admin
   const handleReportToAdmin = () => {
-    setShowMenu(false);
-    setShowReportModal(true);
+    // Use unified report action handler
+    const shouldProceed = handleReportAction(
+      incident,
+      currentUser,
+      hasReported,
+      () => {
+        // This callback will be called if reporting is allowed
+        setShowMenu(false);
+        setShowReportModal(true);
+      }
+    );
+
+    // If reporting is not allowed, close the menu
+    if (!shouldProceed) {
+      setShowMenu(false);
+    }
   };
 
   // Handle PDF download
@@ -440,7 +454,7 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
                 >
                   📄 Download PDF
                 </button>
-                {currentUser && canDeleteIncident() && (
+                {currentUser && checkCanDeleteIncident() && (
                   <button 
                     className="incident-card__menu-item incident-card__menu-item--delete"
                     onClick={(e) => {
@@ -451,22 +465,15 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
                     🗑️ Delete
                   </button>
                 )}
-                {currentUser && canReportIncident() && (
-                  <button 
-                    className="incident-card__menu-item incident-card__menu-item--report"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleReportToAdmin();
-                    }}
-                  >
-                    🚨 Report to Admin
-                  </button>
-                )}
-                {currentUser && hasReported && (
-                  <div className="incident-card__menu-item incident-card__menu-item--reported">
-                    ✅ Already Reported
-                  </div>
-                )}
+                <button 
+                  className="incident-card__menu-item incident-card__menu-item--report"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleReportToAdmin();
+                  }}
+                >
+                  🚨 Report to Admin
+                </button>
               </div>
             )}
         </div>
@@ -530,7 +537,7 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
       {showComments && (
         <div className="incident-card__comments-section">
           <CommentList incidentId={incident._id} />
-          {currentUser && <CommentForm incidentId={incident._id} />}
+          <CommentForm incidentId={incident._id} />
         </div>
       )}
       

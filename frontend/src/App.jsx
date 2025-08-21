@@ -9,15 +9,33 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
-  // Initialize currentView from localStorage or URL hash, fallback to 'map'
-  const getInitialView = () => {
-    // Check URL hash first
-    const hash = window.location.hash.slice(1);
-    if (hash && ['map', 'feed', 'profile', 'admin'].includes(hash)) {
+  // Helper function to extract view from hash
+  const getViewFromHash = (hash) => {
+    if (!hash) return null;
+    
+    // Handle map with parameters (e.g., "map?lat=...&lng=...")
+    if (hash.startsWith('map')) {
+      return 'map';
+    }
+    
+    // Handle other exact matches
+    if (['feed', 'profile', 'admin'].includes(hash)) {
       return hash;
     }
     
-    // Check localStorage
+    return null;
+  };
+
+  // Initialize currentView from localStorage or URL hash, fallback to 'map'
+  const getInitialView = () => {
+    // Check URL hash first - this takes priority over localStorage
+    const hash = window.location.hash.slice(1);
+    const viewFromHash = getViewFromHash(hash);
+    if (viewFromHash) {
+      return viewFromHash;
+    }
+    
+    // Only use localStorage if there's no valid hash
     const savedView = localStorage.getItem('currentView');
     if (savedView && ['map', 'feed', 'profile', 'admin'].includes(savedView)) {
       return savedView;
@@ -32,22 +50,33 @@ function App() {
   const handleViewChange = (newView) => {
     setCurrentView(newView);
     localStorage.setItem('currentView', newView);
-    window.location.hash = newView;
+    // Only update hash if it's a simple view change (not from PDF links)
+    if (!window.location.hash.includes('?')) {
+      window.location.hash = newView;
+    } else {
+      // If we have parameters, just change the base view
+      window.location.hash = newView;
+    }
   };
 
   // Listen for browser back/forward navigation
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
-      if (hash && ['map', 'feed', 'profile', 'admin'].includes(hash)) {
-        setCurrentView(hash);
-        localStorage.setItem('currentView', hash);
+      const viewFromHash = getViewFromHash(hash);
+      
+      if (viewFromHash) {
+        setCurrentView(viewFromHash);
+        // Only save to localStorage if it's a simple navigation (not PDF links with params)
+        if (!hash.includes('?')) {
+          localStorage.setItem('currentView', viewFromHash);
+        }
       }
     };
 
     window.addEventListener('hashchange', handleHashChange);
     
-    // Set initial hash if none exists
+    // Set initial hash if none exists and no URL parameters
     if (!window.location.hash) {
       window.location.hash = currentView;
     }
@@ -55,7 +84,7 @@ function App() {
     return () => {
       window.removeEventListener('hashchange', handleHashChange);
     };
-  }, [currentView]);
+  }, []);
 
   const renderView = () => {
     switch (currentView) {

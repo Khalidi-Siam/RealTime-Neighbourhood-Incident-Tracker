@@ -1,5 +1,6 @@
 import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { toast } from 'react-toastify';
 
 function AuthForm({ onClose }) {
   const { login, register } = useContext(AuthContext);
@@ -35,6 +36,17 @@ function AuthForm({ onClose }) {
       if (result.success) {
         setSuccess(result.message);
         console.log('Login successful:', result.message);
+        
+        // Show success toast
+        toast.success('Login successful! Welcome back!', {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+
         setTimeout(() => {
           console.log('Closing modal after login');
           onClose();
@@ -42,17 +54,48 @@ function AuthForm({ onClose }) {
       } else {
         setError(result.message);
         console.log('Login failed:', result.message);
+        
+        // Show error toast
+        toast.error('Login failed: ' + result.message, {
+          position: "top-right",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
       }
     } else {
       if (formData.password !== formData.confirmPassword) {
         setError('Passwords do not match');
         console.log('Register failed: Passwords do not match');
+        
+        // Show error toast
+        toast.error('Passwords do not match', {
+          position: "top-right",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
         return;
       }
       const result = await register(formData.username, formData.email, formData.phone, formData.password);
       if (result.success) {
         setSuccess(result.message);
         console.log('Register successful:', result.message);
+        
+        // Show success toast
+        toast.success('Registration successful! Welcome to the platform!', {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+
         setTimeout(() => {
           console.log('Closing modal after register');
           onClose();
@@ -60,6 +103,16 @@ function AuthForm({ onClose }) {
       } else {
         setError(result.message);
         console.log('Register failed:', result.message);
+        
+        // Show error toast
+        toast.error('Registration failed: ' + result.message, {
+          position: "top-right",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
       }
     }
   };

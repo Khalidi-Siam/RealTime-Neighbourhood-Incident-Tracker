@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext.jsx';
 import Modal from './Modal.jsx';
 import AuthForm from './AuthForm.jsx';
 import ReportIncidentForm from './ReportIncidentForm.jsx';
+import { toast } from 'react-toastify';
 
 function Nav({ currentView, onViewChange }) {
   const { currentUser, logout } = useContext(AuthContext);
@@ -20,6 +21,21 @@ function Nav({ currentView, onViewChange }) {
   const handleViewChange = (view) => {
     onViewChange(view);
     setIsMenuOpen(false); // Close mobile menu when view changes
+  };
+
+  const handleLogout = () => {
+    const username = currentUser?.username || currentUser?.name || 'User';
+    logout();
+    
+    // Show logout toast
+    toast.success(`Goodbye ${username}! You have been logged out successfully.`, {
+      position: "top-right",
+      autoClose: 3000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+    });
   };
 
   return (
@@ -88,7 +104,7 @@ function Nav({ currentView, onViewChange }) {
                     </div>
                     <span className="nav__username">{currentUser.username || currentUser.name}</span>
                   </button>
-                  <button className="nav__logout" onClick={logout} title="Logout">
+                  <button className="nav__logout" onClick={handleLogout} title="Logout">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                       <polyline points="16,17 21,12 16,7"></polyline>

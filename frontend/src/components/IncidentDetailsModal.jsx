@@ -1,12 +1,18 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { toast } from 'react-toastify';
 
 function IncidentDetailsModal({ incident, onClose }) {
-  const { currentUser } = useContext(AuthContext);
+  const { currentUser, token } = useContext(AuthContext);
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [votes, setVotes] = useState({
+    upvotes: 0,
+    downvotes: 0,
+    userVote: null,
+  });
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -33,6 +39,11 @@ function IncidentDetailsModal({ incident, onClose }) {
           throw new Error(data.message || 'Failed to fetch incident details');
         }
         setDetails({ ...data.incident, severity: incident.severity });
+        setVotes({
+          upvotes: data.incident.votes.upvotes || 0,
+          downvotes: data.incident.votes.downvotes || 0,
+          userVote: data.incident.votes.userVote || null,
+        });
       } catch (err) {
         setError(err.message);
       } finally {
@@ -42,6 +53,81 @@ function IncidentDetailsModal({ incident, onClose }) {
 
     fetchDetails();
   }, [incident]);
+
+  const handleVote = async (voteType) => {
+    if (!currentUser || !token) {
+      toast.warn('Please log in to vote', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      return;
+    }
+    
+    // Store the previous vote state to determine if vote was added or removed
+    const previousVote = votes.userVote;
+    const isRemovingVote = previousVote === voteType;
+    
+    try {
+      const response = await fetch(`http://localhost:3000/api/incidents/${incident._id}/vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ voteType }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Update votes state with the response data
+      setVotes({
+        upvotes: data.votes.upvotes,
+        downvotes: data.votes.downvotes,
+        userVote: data.votes.userVote,
+      });
+      setError('');
+      
+      // Show appropriate success toast based on vote action
+      let message;
+      if (isRemovingVote) {
+        message = 'Vote removed successfully!';
+      } else {
+        message = `${voteType === 'upvote' ? 'Upvoted' : 'Downvoted'} successfully!`;
+      }
+      
+      toast.success(message, {
+        position: "top-right",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    } catch (err) {
+      console.error('Vote error:', err);
+      const errorMessage = err.message || 'Failed to record vote';
+      setError('');
+      
+      // Show error toast
+      toast.error(errorMessage, {
+        position: "top-right",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
+  };
 
   // const handleDelete = async () => {
   //   if (!currentUser || currentUser.role !== 'admin') {
@@ -98,8 +184,24 @@ function IncidentDetailsModal({ incident, onClose }) {
         {new Date(details.timestamp).toLocaleDateString()}
       </div>
       <div className="incident-details__votes">
-        <span>{details.votes.upvotes} Upvotes</span>
-        <span>{details.votes.downvotes} Downvotes</span>
+        <div className="voting-actions">
+          <button
+            className={`btn btn--icon-only ${votes.userVote === 'upvote' ? 'btn--active' : ''}`}
+            onClick={() => handleVote('upvote')}
+            title={`Upvote (${votes.upvotes})`}
+          >
+            <span role="img" aria-label="Upvote">👍</span>
+            <span className="vote-count">{votes.upvotes}</span>
+          </button>
+          <button
+            className={`btn btn--icon-only ${votes.userVote === 'downvote' ? 'btn--active' : ''}`}
+            onClick={() => handleVote('downvote')}
+            title={`Downvote (${votes.downvotes})`}
+          >
+            <span role="img" aria-label="Downvote">👎</span>
+            <span className="vote-count">{votes.downvotes}</span>
+          </button>
+        </div>
       </div>
       {/* {currentUser && currentUser.role === 'admin' && (
         <button className="btn btn--error" onClick={handleDelete}>

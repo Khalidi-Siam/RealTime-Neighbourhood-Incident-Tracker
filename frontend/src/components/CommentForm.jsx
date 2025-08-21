@@ -9,6 +9,19 @@ function CommentForm({ incidentId }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!token) {
+      toast.warn('Please log in to post comments', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      return;
+    }
+    
     if (!content.trim()) {
       setError('Comment cannot be empty');
       return;
