@@ -2,6 +2,7 @@ import { useState, useEffect, useContext, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker, useMapEvents } from 'react-leaflet';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { useSocket } from '../context/SocketContext.jsx';
 import ReportModal from './ReportModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
 import PopupContent from './PopupContent.jsx';
@@ -55,6 +56,7 @@ const createCustomIcon = (severity, isSelected = false, isFalseReport = false) =
 
 function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
   const { currentUser, token } = useContext(AuthContext);
+  const { socket, joinIncidentsRoom, leaveIncidentsRoom } = useSocket();
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -106,6 +108,135 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
       }, 2000); // Give time for map animation and incident selection
     }
   }, [incidents, onMarkerClick]);
+
+  // Socket.IO real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    // Join the incidents room for real-time updates
+    joinIncidentsRoom();
+
+    // Listen for new incidents
+    const handleNewIncident = (data) => {
+      console.log('New incident received:', data);
+      setIncidents(prevIncidents => {
+        // Check if incident already exists to avoid duplicates
+        const exists = prevIncidents.some(incident => incident._id === data.incident._id);
+        if (exists) return prevIncidents;
+        
+        return [data.incident, ...prevIncidents];
+      });
+      
+      toast.success(data.message || 'New incident reported in your area!', {
+        position: "top-right",
+        autoClose: 4000,
+      });
+    };
+
+    // Listen for incident deletions
+    const handleIncidentDeleted = (data) => {
+      console.log('Incident deleted:', data);
+      setIncidents(prevIncidents => 
+        prevIncidents.filter(incident => incident._id !== data.incidentId)
+      );
+      
+      toast.info(data.message || 'An incident has been removed', {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    };
+
+    // Listen for vote updates
+    const handleVoteUpdate = (data) => {
+      console.log('Vote updated:', data);
+      setIncidents(prevIncidents => 
+        prevIncidents.map(incident => {
+          if (incident._id === data.incidentId) {
+            // Preserve the current user's vote status, only update counts
+            const updatedVotes = {
+              upvotes: data.votes.upvotes,
+              downvotes: data.votes.downvotes,
+              total: data.votes.total,
+              userVote: incident.votes.userVote // Keep existing userVote from current state
+            };
+            
+            // If this vote update is from the current user, update their userVote
+            if (currentUser && data.voterId === currentUser.id) {
+              if (data.action === 'removed') {
+                updatedVotes.userVote = null;
+              } else {
+                updatedVotes.userVote = data.voteType;
+              }
+            }
+            
+            return { ...incident, votes: updatedVotes };
+          }
+          return incident;
+        })
+      );
+    };
+
+    // Listen for false report accepted (admin marks incident as false)
+    const handleFalseReportAccepted = (data) => {
+      console.log('False report accepted:', data);
+      setIncidents(prevIncidents => 
+        prevIncidents.map(incident => {
+          if (incident._id === data.incidentId) {
+            return { 
+              ...incident, 
+              falseFlagVerified: data.incident.falseFlagVerified,
+              isFalseFlagged: data.incident.isFalseFlagged
+            };
+          }
+          return incident;
+        })
+      );
+      
+      toast.info(data.message || 'An incident has been marked as false', {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    };
+
+    // Listen for false report rejected (admin restores incident)
+    const handleFalseReportRejected = (data) => {
+      console.log('False report rejected:', data);
+      setIncidents(prevIncidents => 
+        prevIncidents.map(incident => {
+          if (incident._id === data.incidentId) {
+            return { 
+              ...incident, 
+              falseFlagVerified: data.incident.falseFlagVerified,
+              isFalseFlagged: data.incident.isFalseFlagged
+            };
+          }
+          return incident;
+        })
+      );
+      
+      toast.success(data.message || 'An incident has been restored', {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    };
+
+    // Register event listeners
+    socket.on('new-incident', handleNewIncident);
+    socket.on('incident-deleted', handleIncidentDeleted);
+    socket.on('incident-vote-updated', handleVoteUpdate);
+    socket.on('incident-false-report-accepted', handleFalseReportAccepted);
+    socket.on('incident-false-report-rejected', handleFalseReportRejected);
+
+    // Cleanup
+    return () => {
+      socket.off('new-incident', handleNewIncident);
+      socket.off('incident-deleted', handleIncidentDeleted);
+      socket.off('incident-vote-updated', handleVoteUpdate);
+      socket.off('incident-false-report-accepted', handleFalseReportAccepted);
+      socket.off('incident-false-report-rejected', handleFalseReportRejected);
+      leaveIncidentsRoom();
+    };
+  }, [socket, joinIncidentsRoom, leaveIncidentsRoom]);
 
   // Get user's current location (always ask for permission)
   const getCurrentLocation = () => {

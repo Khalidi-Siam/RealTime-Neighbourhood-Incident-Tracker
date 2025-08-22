@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { useSocket } from '../context/SocketContext.jsx';
+import { toast } from 'react-toastify';
 
 function CommentList({ incidentId }) {
   const { token } = useContext(AuthContext);
+  const { socket, joinIncidentRoom, leaveIncidentRoom } = useSocket();
   const [comments, setComments] = useState([]);
   const [error, setError] = useState('');
 
@@ -34,6 +37,67 @@ function CommentList({ incidentId }) {
 
     fetchComments();
   }, [incidentId, token]);
+
+  // Socket.IO real-time updates for comments
+  useEffect(() => {
+    if (!socket || !incidentId) return;
+
+    // Join the specific incident room for comment updates
+    joinIncidentRoom(incidentId);
+
+    // Listen for new comments
+    const handleNewComment = (data) => {
+      if (data.incidentId === incidentId) {
+        console.log('New comment received:', data);
+        setComments(prevComments => [data.comment, ...prevComments]);
+        
+        toast.success(data.message || 'New comment added!', {
+          position: "top-right",
+          autoClose: 3000,
+        });
+      }
+    };
+
+    // Listen for comment updates
+    const handleCommentUpdate = (data) => {
+      if (data.incidentId === incidentId) {
+        console.log('Comment updated:', data);
+        setComments(prevComments => 
+          prevComments.map(comment => 
+            comment._id === data.comment._id ? data.comment : comment
+          )
+        );
+      }
+    };
+
+    // Listen for comment deletions
+    const handleCommentDeleted = (data) => {
+      if (data.incidentId === incidentId) {
+        console.log('Comment deleted:', data);
+        setComments(prevComments => 
+          prevComments.filter(comment => comment._id !== data.commentId)
+        );
+        
+        toast.info(data.message || 'Comment has been deleted', {
+          position: "top-right",
+          autoClose: 3000,
+        });
+      }
+    };
+
+    // Register event listeners
+    socket.on('new-comment', handleNewComment);
+    socket.on('comment-updated', handleCommentUpdate);
+    socket.on('comment-deleted', handleCommentDeleted);
+
+    // Cleanup
+    return () => {
+      socket.off('new-comment', handleNewComment);
+      socket.off('comment-updated', handleCommentUpdate);
+      socket.off('comment-deleted', handleCommentDeleted);
+      leaveIncidentRoom(incidentId);
+    };
+  }, [socket, incidentId, joinIncidentRoom, leaveIncidentRoom]);
 
   return (
     <div className="comment-list">

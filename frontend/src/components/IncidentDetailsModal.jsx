@@ -1,9 +1,11 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { useSocket } from '../context/SocketContext.jsx';
 import { toast } from 'react-toastify';
 
 function IncidentDetailsModal({ incident, onClose }) {
   const { currentUser, token } = useContext(AuthContext);
+  const { socket, joinIncidentRoom, leaveIncidentRoom } = useSocket();
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -53,6 +55,65 @@ function IncidentDetailsModal({ incident, onClose }) {
 
     fetchDetails();
   }, [incident]);
+
+  // Socket.IO real-time updates for this specific incident
+  useEffect(() => {
+    if (!socket || !incident?._id) return;
+
+    // Join the specific incident room
+    joinIncidentRoom(incident._id);
+
+    // Listen for vote updates on this incident
+    const handleVoteUpdate = (data) => {
+      if (data.incidentId === incident._id) {
+        console.log('Vote updated for this incident:', data);
+        
+        // Preserve the current user's vote status, only update counts
+        setVotes(prevVotes => {
+          const updatedVotes = {
+            upvotes: data.votes.upvotes,
+            downvotes: data.votes.downvotes,
+            total: data.votes.total,
+            userVote: prevVotes.userVote // Keep existing userVote from current state
+          };
+          
+          // If this vote update is from the current user, update their userVote
+          if (currentUser && data.voterId === currentUser.id) {
+            if (data.action === 'removed') {
+              updatedVotes.userVote = null;
+            } else {
+              updatedVotes.userVote = data.voteType;
+            }
+          }
+          
+          return updatedVotes;
+        });
+      }
+    };
+
+    // Listen for incident deletion
+    const handleIncidentDeleted = (data) => {
+      if (data.incidentId === incident._id) {
+        console.log('This incident was deleted:', data);
+        toast.error(data.message || 'This incident has been deleted', {
+          position: "top-right",
+          autoClose: 3000,
+        });
+        onClose(); // Close the modal since the incident no longer exists
+      }
+    };
+
+    // Register event listeners
+    socket.on('vote-updated', handleVoteUpdate);
+    socket.on('incident-deleted', handleIncidentDeleted);
+
+    // Cleanup
+    return () => {
+      socket.off('vote-updated', handleVoteUpdate);
+      socket.off('incident-deleted', handleIncidentDeleted);
+      leaveIncidentRoom(incident._id);
+    };
+  }, [socket, incident?._id, joinIncidentRoom, leaveIncidentRoom, onClose]);
 
   const handleVote = async (voteType) => {
     if (!currentUser || !token) {

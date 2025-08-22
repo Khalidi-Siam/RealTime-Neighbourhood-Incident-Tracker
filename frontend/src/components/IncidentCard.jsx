@@ -43,6 +43,15 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
 
+  // Update votes when incident prop changes (for real-time updates)
+  useEffect(() => {
+    setVotes({
+      upvotes: incident.votes.upvotes || 0,
+      downvotes: incident.votes.downvotes || 0,
+      userVote: incident.votes.userVote || null,
+    });
+  }, [incident.votes]);
+
   // Get category configuration
   const getCategoryConfig = (category) => {
     return categoryConfig[category] || categoryConfig['Other'];

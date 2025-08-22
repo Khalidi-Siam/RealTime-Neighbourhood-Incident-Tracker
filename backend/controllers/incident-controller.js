@@ -26,6 +26,31 @@ const createIncident = async (req, res) => {
     });
 
     await newIncident.save();
+    
+    // Populate user information for the real-time event
+    await newIncident.populate('submittedBy', 'username email');
+
+    // Emit real-time event to all clients listening to incidents
+    const io = req.app.get('io');
+    if (io) {
+      const incidentWithVotes = {
+        ...newIncident.toObject(),
+        id: newIncident._id.toString(),
+        votes: {
+          upvotes: 0,
+          downvotes: 0,
+          total: 0,
+          userVote: null
+        }
+      };
+      
+      io.to('incidents').emit('new-incident', {
+        type: 'incident-created',
+        incident: incidentWithVotes,
+        message: 'New incident reported'
+      });
+    }
+
     res.status(201).json({ message: 'Incident submitted successfully', incident: newIncident });
 
   } catch (err) {
@@ -219,6 +244,23 @@ const deleteIncident = async (req, res) => {
       // Delete the incident itself
       Incident.findByIdAndDelete(id)
     ]);
+
+    // Emit real-time event to all clients
+    const io = req.app.get('io');
+    if (io) {
+      io.to('incidents').emit('incident-deleted', {
+        type: 'incident-deleted',
+        incidentId: id,
+        message: 'Incident has been deleted'
+      });
+      
+      // Also emit to the specific incident room if anyone is viewing it
+      io.to(`incident-${id}`).emit('incident-deleted', {
+        type: 'incident-deleted',
+        incidentId: id,
+        message: 'This incident has been deleted'
+      });
+    }
 
     res.status(200).json({ 
       message: 'Incident and all related data deleted successfully' 

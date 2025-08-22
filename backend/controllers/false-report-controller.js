@@ -116,6 +116,22 @@ const acceptFalseReport = async (req, res) => {
         incident.isFalseFlagged = false; // Remove from admin pending list
         await incident.save();
 
+        // Emit real-time event to all clients
+        const io = req.app.get('io');
+        if (io) {
+            // Emit to incidents room for map/feed updates
+            io.to('incidents').emit('incident-false-report-accepted', {
+                type: 'false-report-accepted',
+                incidentId: incident._id,
+                incident: {
+                    _id: incident._id,
+                    falseFlagVerified: incident.falseFlagVerified,
+                    isFalseFlagged: incident.isFalseFlagged
+                },
+                message: 'Incident marked as false report'
+            });
+        }
+
         res.status(200).json({ 
             message: 'False report accepted successfully. Incident will remain visible but marked as false.',
             incident: {
@@ -146,6 +162,22 @@ const rejectFalseReport = async (req, res) => {
         incident.falseFlagVerified = false;
         incident.isFalseFlagged = false;
         await incident.save();
+
+        // Emit real-time event to all clients
+        const io = req.app.get('io');
+        if (io) {
+            // Emit to incidents room for map/feed updates
+            io.to('incidents').emit('incident-false-report-rejected', {
+                type: 'false-report-rejected',
+                incidentId: incident._id,
+                incident: {
+                    _id: incident._id,
+                    falseFlagVerified: incident.falseFlagVerified,
+                    isFalseFlagged: incident.isFalseFlagged
+                },
+                message: 'False report rejected, incident restored'
+            });
+        }
 
         res.status(200).json({ 
             message: 'False report rejected successfully. Incident restored to normal status.',

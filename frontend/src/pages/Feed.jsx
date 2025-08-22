@@ -1,8 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
+import { useSocket } from '../context/SocketContext.jsx';
+import { AuthContext } from '../context/AuthContext.jsx';
 import IncidentCard from '../components/IncidentCard.jsx';
 import useInfiniteScroll from '../hooks/useInfiniteScroll.jsx';
+import { toast } from 'react-toastify';
 
 function Feed() {
+  const { currentUser } = useContext(AuthContext);
+  const { socket, joinIncidentsRoom, leaveIncidentsRoom } = useSocket();
   const [incidents, setIncidents] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -106,7 +111,137 @@ function Feed() {
     fetchIncidents(1, false);
   }, [filters.sortBy, filters.order, filters.category, filters.severity]);
 
-  // Listen for incident deletion events
+  // Socket.IO real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    // Join the incidents room for real-time updates
+    joinIncidentsRoom();
+
+    // Listen for new incidents
+    const handleNewIncident = (data) => {
+      console.log('New incident received in feed:', data);
+      setIncidents(prevIncidents => {
+        // Check if incident already exists to avoid duplicates
+        const exists = prevIncidents.some(incident => incident._id === data.incident._id);
+        if (exists) return prevIncidents;
+        
+        // Add to the beginning of the list (most recent first)
+        return [data.incident, ...prevIncidents];
+      });
+      
+      toast.success(data.message || 'New incident reported!', {
+        position: "top-right",
+        autoClose: 4000,
+      });
+    };
+
+    // Listen for incident deletions
+    const handleIncidentDeleted = (data) => {
+      console.log('Incident deleted in feed:', data);
+      setIncidents(prevIncidents => 
+        prevIncidents.filter(incident => incident._id !== data.incidentId)
+      );
+      
+      toast.info(data.message || 'An incident has been removed', {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    };
+
+    // Listen for vote updates
+    const handleVoteUpdate = (data) => {
+      console.log('Vote updated in feed:', data);
+      setIncidents(prevIncidents => 
+        prevIncidents.map(incident => {
+          if (incident._id === data.incidentId) {
+            // Preserve the current user's vote status, only update counts
+            const updatedVotes = {
+              upvotes: data.votes.upvotes,
+              downvotes: data.votes.downvotes,
+              total: data.votes.total,
+              userVote: incident.votes.userVote // Keep existing userVote from current state
+            };
+            
+            // If this vote update is from the current user, update their userVote
+            if (currentUser && data.voterId === currentUser.id) {
+              if (data.action === 'removed') {
+                updatedVotes.userVote = null;
+              } else {
+                updatedVotes.userVote = data.voteType;
+              }
+            }
+            
+            return { ...incident, votes: updatedVotes };
+          }
+          return incident;
+        })
+      );
+    };
+
+    // Listen for false report accepted (admin marks incident as false)
+    const handleFalseReportAccepted = (data) => {
+      console.log('False report accepted in feed:', data);
+      setIncidents(prevIncidents => 
+        prevIncidents.map(incident => {
+          if (incident._id === data.incidentId) {
+            return { 
+              ...incident, 
+              falseFlagVerified: data.incident.falseFlagVerified,
+              isFalseFlagged: data.incident.isFalseFlagged
+            };
+          }
+          return incident;
+        })
+      );
+      
+      toast.info(data.message || 'An incident has been marked as false', {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    };
+
+    // Listen for false report rejected (admin restores incident)
+    const handleFalseReportRejected = (data) => {
+      console.log('False report rejected in feed:', data);
+      setIncidents(prevIncidents => 
+        prevIncidents.map(incident => {
+          if (incident._id === data.incidentId) {
+            return { 
+              ...incident, 
+              falseFlagVerified: data.incident.falseFlagVerified,
+              isFalseFlagged: data.incident.isFalseFlagged
+            };
+          }
+          return incident;
+        })
+      );
+      
+      toast.success(data.message || 'An incident has been restored', {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    };
+
+    // Register event listeners
+    socket.on('new-incident', handleNewIncident);
+    socket.on('incident-deleted', handleIncidentDeleted);
+    socket.on('incident-vote-updated', handleVoteUpdate);
+    socket.on('incident-false-report-accepted', handleFalseReportAccepted);
+    socket.on('incident-false-report-rejected', handleFalseReportRejected);
+
+    // Cleanup
+    return () => {
+      socket.off('new-incident', handleNewIncident);
+      socket.off('incident-deleted', handleIncidentDeleted);
+      socket.off('incident-vote-updated', handleVoteUpdate);
+      socket.off('incident-false-report-accepted', handleFalseReportAccepted);
+      socket.off('incident-false-report-rejected', handleFalseReportRejected);
+      leaveIncidentsRoom();
+    };
+  }, [socket, joinIncidentsRoom, leaveIncidentsRoom]);
+
+  // Listen for incident deletion events (from non-socket sources)
   useEffect(() => {
     const handleIncidentDeleted = () => {
       // Refresh the incidents list

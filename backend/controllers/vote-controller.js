@@ -76,6 +76,43 @@ const voteIncident = async (req, res) => {
             responseData.previousVote = previousVote;
         }
 
+        // Emit real-time event to all clients
+        const io = req.app.get('io');
+        if (io) {
+            // Emit to incidents room for map/feed updates
+            // Don't include userVote in broadcast - each client should determine this individually
+            io.to('incidents').emit('incident-vote-updated', {
+                type: 'vote-updated',
+                incidentId,
+                votes: {
+                    upvotes,
+                    downvotes,
+                    total: upvotes + downvotes
+                    // userVote is NOT included in broadcast
+                },
+                action,
+                voteType: action === 'removed' ? previousVote : voteType, // Include what type of vote was cast
+                voterId: userId, // Include voter ID so clients can determine if it's their vote
+                message: `Vote ${action} on incident`
+            });
+
+            // Emit to specific incident room for detailed view updates
+            io.to(`incident-${incidentId}`).emit('vote-updated', {
+                type: 'vote-updated',
+                incidentId,
+                votes: {
+                    upvotes,
+                    downvotes,
+                    total: upvotes + downvotes
+                    // userVote is NOT included in broadcast
+                },
+                action,
+                voteType: action === 'removed' ? previousVote : voteType, // Include what type of vote was cast
+                voterId: userId, // Include voter ID so clients can determine if it's their vote
+                message: `Vote ${action}`
+            });
+        }
+
         res.status(action === 'added' ? 201 : 200).json(responseData);
 
     } catch (error) {

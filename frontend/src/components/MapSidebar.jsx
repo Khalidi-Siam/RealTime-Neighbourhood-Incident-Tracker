@@ -1,10 +1,12 @@
 import { useState, useEffect, useContext, useCallback } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { useSocket } from '../context/SocketContext.jsx';
 import IncidentCard from './IncidentCard.jsx';
 import useInfiniteScroll from '../hooks/useInfiniteScroll.jsx';
 
 function MapSidebar({ onIncidentSelect, selectedIncident }) {
   const { currentUser } = useContext(AuthContext);
+  const { socket, joinIncidentsRoom, leaveIncidentsRoom } = useSocket();
   const [incidents, setIncidents] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [severityFilter, setSeverityFilter] = useState('All');
@@ -65,6 +67,116 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
 
   // Infinite scroll hook
   const [lastElementRef, isFetching] = useInfiniteScroll(fetchMoreIncidents, hasNextPage);
+
+  // Socket.IO real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    // Join the incidents room for real-time updates
+    joinIncidentsRoom();
+
+    // Listen for new incidents
+    const handleNewIncident = (data) => {
+      console.log('New incident received in sidebar:', data);
+      setIncidents(prevIncidents => {
+        // Check if incident already exists to avoid duplicates
+        const exists = prevIncidents.some(incident => incident._id === data.incident._id);
+        if (exists) return prevIncidents;
+        
+        // Add to the beginning of the list (most recent first)
+        return [data.incident, ...prevIncidents];
+      });
+    };
+
+    // Listen for incident deletions
+    const handleIncidentDeleted = (data) => {
+      console.log('Incident deleted in sidebar:', data);
+      setIncidents(prevIncidents => 
+        prevIncidents.filter(incident => incident._id !== data.incidentId)
+      );
+    };
+
+    // Listen for vote updates
+    const handleVoteUpdate = (data) => {
+      console.log('Vote updated in sidebar:', data);
+      setIncidents(prevIncidents => 
+        prevIncidents.map(incident => {
+          if (incident._id === data.incidentId) {
+            // Preserve the current user's vote status, only update counts
+            const updatedVotes = {
+              upvotes: data.votes.upvotes,
+              downvotes: data.votes.downvotes,
+              total: data.votes.total,
+              userVote: incident.votes.userVote // Keep existing userVote from current state
+            };
+            
+            // If this vote update is from the current user, update their userVote
+            if (currentUser && data.voterId === currentUser.id) {
+              if (data.action === 'removed') {
+                updatedVotes.userVote = null;
+              } else {
+                updatedVotes.userVote = data.voteType;
+              }
+            }
+            
+            return { ...incident, votes: updatedVotes };
+          }
+          return incident;
+        })
+      );
+    };
+
+    // Listen for false report accepted (admin marks incident as false)
+    const handleFalseReportAccepted = (data) => {
+      console.log('False report accepted in sidebar:', data);
+      setIncidents(prevIncidents => 
+        prevIncidents.map(incident => {
+          if (incident._id === data.incidentId) {
+            return { 
+              ...incident, 
+              falseFlagVerified: data.incident.falseFlagVerified,
+              isFalseFlagged: data.incident.isFalseFlagged
+            };
+          }
+          return incident;
+        })
+      );
+    };
+
+    // Listen for false report rejected (admin restores incident)
+    const handleFalseReportRejected = (data) => {
+      console.log('False report rejected in sidebar:', data);
+      setIncidents(prevIncidents => 
+        prevIncidents.map(incident => {
+          if (incident._id === data.incidentId) {
+            return { 
+              ...incident, 
+              falseFlagVerified: data.incident.falseFlagVerified,
+              isFalseFlagged: data.incident.isFalseFlagged
+            };
+          }
+          return incident;
+        })
+      );
+    };
+
+    // Register event listeners
+    socket.on('new-incident', handleNewIncident);
+    socket.on('incident-deleted', handleIncidentDeleted);
+    socket.on('incident-vote-updated', handleVoteUpdate);
+    socket.on('incident-false-report-accepted', handleFalseReportAccepted);
+    socket.on('incident-false-report-rejected', handleFalseReportRejected);
+
+    // Cleanup
+    return () => {
+      socket.off('new-incident', handleNewIncident);
+      socket.off('incident-deleted', handleIncidentDeleted);
+      socket.off('incident-vote-updated', handleVoteUpdate);
+      socket.off('incident-false-report-accepted', handleFalseReportAccepted);
+      socket.off('incident-false-report-rejected', handleFalseReportRejected);
+      leaveIncidentsRoom();
+    };
+  }, [socket, joinIncidentsRoom, leaveIncidentsRoom, currentUser]);
 
   // Initial fetch and refetch on category change or incident create/delete
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
+import { useSocket } from '../context/SocketContext.jsx';
 import Modal from './Modal.jsx';
 import AuthForm from './AuthForm.jsx';
 import ReportIncidentForm from './ReportIncidentForm.jsx';
@@ -9,6 +10,7 @@ import { toast } from 'react-toastify';
 function Nav({ currentView, onViewChange }) {
   const { currentUser, logout } = useContext(AuthContext);
   const { isDarkMode, toggleTheme } = useTheme();
+  const { isConnected } = useSocket();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -44,6 +46,12 @@ function Nav({ currentView, onViewChange }) {
         <div className="nav__brand">
           <span className="nav__logo">🗺️</span>
           <h1 className="nav__title">NeighborWatch</h1>
+          {/* Connection status indicator */}
+          <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`} 
+               title={isConnected ? 'Connected to real-time updates' : 'Disconnected from real-time updates'}>
+            <span className="connection-dot"></span>
+            <span className="connection-text">{isConnected ? 'Live' : 'Offline'}</span>
+          </div>
         </div>
         
         <div className={`nav__menu ${isMenuOpen ? 'nav__menu--active' : ''}`} id="navMenu">
