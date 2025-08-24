@@ -5,6 +5,7 @@ import Home from './pages/Home.jsx';
 import Feed from './pages/Feed.jsx';
 import Profile from './pages/Profile.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
+import NotFound from './pages/NotFound.jsx';
 import Nav from './components/Nav.jsx';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -24,7 +25,8 @@ function App() {
       return hash;
     }
     
-    return null;
+    // Return 404 for unknown routes
+    return '404';
   };
 
   // Initialize currentView from localStorage or URL hash, fallback to 'map'
@@ -97,37 +99,43 @@ function App() {
         return <Profile />;
       case 'admin':
         return <AdminDashboard />;
+      case '404':
+        return <NotFound />;
       default:
-        return <Home />;
+        return <NotFound />;
     }
   };
 
   return (
     <ThemeProvider>
       <SocketProvider>
-        {/* Navigation Header */}
+        {/* Navigation Header - Always show for 404 pages too */}
         <header className="header">
-          <Nav currentView={currentView} onViewChange={handleViewChange} />
+          <Nav currentView={currentView === '404' ? 'map' : currentView} onViewChange={handleViewChange} />
         </header>
 
         {/* Main Content */}
-        <main className="main">
-          <div className={`view ${currentView === 'map' ? 'view--active' : ''}`} id="mapView">
-            {currentView === 'map' && <Home />}
-          </div>
-          
-          <div className={`view ${currentView === 'feed' ? 'view--active' : ''}`} id="feedView">
-            {currentView === 'feed' && <Feed />}
-          </div>
-          
-          <div className={`view ${currentView === 'profile' ? 'view--active' : ''}`} id="profileView">
-            {currentView === 'profile' && <Profile />}
-          </div>
-          
-          <div className={`view ${currentView === 'admin' ? 'view--active' : ''}`} id="adminView">
-            {currentView === 'admin' && <AdminDashboard />}
-          </div>
-        </main>
+        {currentView === '404' ? (
+          <NotFound />
+        ) : (
+          <main className="main">
+            <div className={`view ${currentView === 'map' ? 'view--active' : ''}`} id="mapView">
+              {currentView === 'map' && <Home />}
+            </div>
+            
+            <div className={`view ${currentView === 'feed' ? 'view--active' : ''}`} id="feedView">
+              {currentView === 'feed' && <Feed />}
+            </div>
+            
+            <div className={`view ${currentView === 'profile' ? 'view--active' : ''}`} id="profileView">
+              {currentView === 'profile' && <Profile />}
+            </div>
+            
+            <div className={`view ${currentView === 'admin' ? 'view--active' : ''}`} id="adminView">
+              {currentView === 'admin' && <AdminDashboard />}
+            </div>
+          </main>
+        )}
 
         {/* Toast Container */}
         <ToastContainer
