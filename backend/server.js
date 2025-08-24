@@ -8,7 +8,7 @@ const server = http.createServer(app);
 // const path = require('path');
 const connectDB = require('./models/db');
 const errorMiddleware = require('./middlewares/error-middleware');
-const { transcode } = require('buffer');
+
 const PORT = process.env.PORT || 3000;
 const FRONTEND_URL = "https://realtime-neighbourhood-incident-tracker-6hfe.onrender.com";
 // CORS configuration
