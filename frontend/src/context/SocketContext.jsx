@@ -16,9 +16,13 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 
+  const url = import.meta.env.MODE === "development"
+      ? "http://localhost:3000" // dev backend
+      : "https://realtime-neighbourhood-incident-tracker.onrender.com"; 
+
   useEffect(() => {
     // Initialize socket connection
-    const newSocket = io('http://localhost:3000', {
+    const newSocket = io(url, {
       withCredentials: true,
       transports: ['websocket', 'polling']
     });

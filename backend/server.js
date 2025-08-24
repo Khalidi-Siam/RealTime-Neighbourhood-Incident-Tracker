@@ -8,11 +8,12 @@ const server = http.createServer(app);
 // const path = require('path');
 const connectDB = require('./models/db');
 const errorMiddleware = require('./middlewares/error-middleware');
+const { transcode } = require('buffer');
 const PORT = process.env.PORT || 3000;
-
+const FRONTEND_URL = "https://realtime-neighbourhood-incident-tracker-6hfe.onrender.com";
 // CORS configuration
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', FRONTEND_URL],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -21,10 +22,11 @@ app.use(cors({
 // Socket.IO configuration
 const io = socketIo(server, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', FRONTEND_URL],
     credentials: true,
     methods: ['GET', 'POST']
-  }
+  },
+  transports: ['websocket', 'polling']
 });
 
 // Make io accessible to other modules
@@ -80,7 +82,7 @@ app.get('/', (req, res) => {
 app.use(errorMiddleware);
 connectDB().then(() => {
   server.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on port: ${PORT}`);
   });
 }).catch(err => {
   console.error('Failed to connect to the database:', err);
