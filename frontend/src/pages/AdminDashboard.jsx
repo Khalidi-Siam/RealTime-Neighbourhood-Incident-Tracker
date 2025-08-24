@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { authAPI, incidentsAPI } from '../utils/api.js';
 import { toast } from 'react-toastify';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 
@@ -46,42 +47,17 @@ function AdminDashboard() {
 
   const fetchTotalUsersCount = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        'http://localhost:3000/api/auth/admin/users-count',
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        // If the specific endpoint doesn't exist, fall back to getting total from pagination
-        const fallbackResponse = await fetch(
-          'http://localhost:3000/api/auth/admin/users?page=1&limit=1',
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        
-        const fallbackData = await fallbackResponse.json();
-        if (fallbackResponse.ok && fallbackData.pagination) {
-          setTotalUsersCount(fallbackData.pagination.total || 0);
-        }
-        return;
-      }
-
+      const data = await authAPI.getUsersCount();
       setTotalUsersCount(data.totalUsers || 0);
     } catch (err) {
-      console.error('Error fetching total users count:', err);
-      // Don't show error toast for this as it's not critical
+      try {
+        // If the specific endpoint doesn't exist, fall back to getting total from pagination
+        const fallbackData = await authAPI.getAllUsers(1, 1);
+        setTotalUsersCount(fallbackData.pagination?.total || 0);
+      } catch (fallbackErr) {
+        console.error('Error fetching total users count:', fallbackErr);
+        // Don't show error toast for this as it's not critical
+      }
     }
   };
 
@@ -90,23 +66,7 @@ function AdminDashboard() {
       setLoading(true);
       setError('');
       
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `http://localhost:3000/api/incidents/admin/reported-incidents?page=${currentPage}&limit=10`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch reported incidents');
-      }
-
+      const data = await incidentsAPI.getReportedIncidents(currentPage, 10);
       setReportedIncidents(data.incidents);
       setTotalPages(data.pagination.totalPages);
     } catch (err) {
@@ -122,24 +82,7 @@ function AdminDashboard() {
       setUsersLoading(true);
       setUsersError('');
       
-      const token = localStorage.getItem('token');
-      const searchParam = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : '';
-      const response = await fetch(
-        `http://localhost:3000/api/auth/admin/users?page=${usersCurrentPage}&limit=9${searchParam}`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch users');
-      }
-
+      const data = await authAPI.getAllUsers(usersCurrentPage, 9, searchQuery);
       setUsers(data.users);
       setUsersTotalPages(data.pagination.totalPages);
       
@@ -186,24 +129,11 @@ function AdminDashboard() {
     setProcessing(prev => ({ ...prev, [incidentId]: true }));
 
     try {
-      const token = localStorage.getItem('token');
-      const endpoint = type === 'accept' ? 'accept' : 'reject';
-      
-      const response = await fetch(
-        `http://localhost:3000/api/incidents/${incidentId}/${endpoint}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || `Failed to ${type} report`);
+      let data;
+      if (type === 'accept') {
+        data = await incidentsAPI.acceptFalseReport(incidentId);
+      } else {
+        data = await incidentsAPI.rejectFalseReport(incidentId);
       }
 
       toast.success(data.message || `Report ${type}ed successfully`);

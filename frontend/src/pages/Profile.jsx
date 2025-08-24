@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { authAPI } from '../utils/api.js';
 
 function Profile() {
   const { currentUser, token } = useContext(AuthContext);
@@ -10,19 +11,7 @@ function Profile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/auth/profile', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch profile');
-        }
-
-        const data = await response.json();
+        const data = await authAPI.getProfile();
         setProfileData(data.user);
       } catch (err) {
         setError(err.message);

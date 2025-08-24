@@ -1,5 +1,6 @@
 import { useState, useContext, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { incidentsAPI } from '../utils/api.js';
 
 const useReportStatus = (incidentId) => {
   const { currentUser, token } = useContext(AuthContext);
@@ -18,17 +19,7 @@ const useReportStatus = (incidentId) => {
       }
 
       try {
-        const response = await fetch(`http://localhost:3000/api/incidents/${incidentId}/user-report`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch report status');
-        }
-
-        const data = await response.json();
+        const data = await incidentsAPI.checkUserReport(incidentId);
         setReportStatus({
           hasReported: data.hasReported,
           report: data.report,

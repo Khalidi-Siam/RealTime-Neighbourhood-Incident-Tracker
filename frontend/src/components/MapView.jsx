@@ -2,6 +2,7 @@ import { useState, useEffect, useContext, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker, useMapEvents } from 'react-leaflet';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { incidentsAPI } from '../utils/api.js';
 import { useSocket } from '../context/SocketContext.jsx';
 import ReportModal from './ReportModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
@@ -367,17 +368,11 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
     setLoading(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/incidents?limit=100&sortBy=timestamp&order=-1', {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
+      const data = await incidentsAPI.getAll({
+        limit: 100,
+        sortBy: 'timestamp',
+        order: -1
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch incidents');
-      }
 
       // Use severity from database, fallback to Medium if not provided
       const incidentsWithSeverity = data.incidents.map((incident) => ({
@@ -396,19 +391,7 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
   // Delete incident function
   const handleDeleteIncident = async (incidentId) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/incidents/${incidentId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to delete incident');
-      }
+      const data = await incidentsAPI.delete(incidentId);
 
       // Close modals
       setShowConfirmModal(false);

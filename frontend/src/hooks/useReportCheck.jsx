@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { incidentsAPI } from '../utils/api.js';
 
 /**
  * Hook to check if a user has reported a specific incident
@@ -19,18 +20,9 @@ function useReportCheck(incidentId) {
 
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/incidents/${incidentId}/user-report`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setHasReported(data.hasReported || false);
-        return data.hasReported || false;
-      }
+      const data = await incidentsAPI.checkUserReport(incidentId);
+      setHasReported(data.hasReported || false);
+      return data.hasReported || false;
     } catch (err) {
       console.error('Error checking report status:', err);
       setHasReported(false);

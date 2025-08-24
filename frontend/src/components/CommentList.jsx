@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { commentsAPI } from '../utils/api.js';
 import { useSocket } from '../context/SocketContext.jsx';
 import { toast } from 'react-toastify';
 
@@ -14,18 +15,7 @@ function CommentList({ incidentId }) {
     console.log(`Fetching comments for incident ${incidentId}`);
     const fetchComments = async () => {
       try {
-        const response = await fetch(`http://localhost:3000/api/incidents/${incidentId}/comments`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
-        });
-        console.log('Comments response status:', response.status);
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`HTTP ${response.status}: ${text.slice(0, 100)}`);
-        }
-        const { comments } = await response.json();
+        const { comments } = await commentsAPI.getByIncident(incidentId);
         console.log('Fetched comments:', comments);
         setComments(comments);
       } catch (err) {

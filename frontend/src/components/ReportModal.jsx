@@ -1,5 +1,6 @@
 import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { incidentsAPI } from '../utils/api.js';
 import { toast } from 'react-toastify';
 
 const ReportModal = ({ isOpen, onClose, incident, onReportSubmitted }) => {
@@ -29,20 +30,7 @@ const ReportModal = ({ isOpen, onClose, incident, onReportSubmitted }) => {
     try {
       const reportReason = selectedReason === 'Other' ? reason : selectedReason;
       
-      const response = await fetch(`http://localhost:3000/api/incidents/${incident._id}/report-false`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ reason: reportReason }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to submit report');
-      }
+      const data = await incidentsAPI.reportFalse(incident._id, reportReason);
 
       toast.success('🎉 Report submitted successfully. Admins will review it shortly.', {
         position: "top-right",

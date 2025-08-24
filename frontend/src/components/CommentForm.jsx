@@ -1,5 +1,6 @@
 import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { commentsAPI } from '../utils/api.js';
 import { toast } from 'react-toastify';
 
 function CommentForm({ incidentId }) {
@@ -27,21 +28,8 @@ function CommentForm({ incidentId }) {
       return;
     }
     try {
-      const response = await fetch(`http://localhost:3000/api/incidents/${incidentId}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ text: content }),
-      });
-      console.log('Comment post response status:', response.status);
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`HTTP ${response.status}: ${text.slice(0, 100)}`);
-      }
-      const { comment } = await response.json();
-      console.log('Posted comment:', comment);
+      const data = await commentsAPI.create(incidentId, content);
+      console.log('Posted comment data:', data);
       setContent('');
       setError('');
       

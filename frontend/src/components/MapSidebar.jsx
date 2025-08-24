@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext, useCallback } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { incidentsAPI } from '../utils/api.js';
 import { useSocket } from '../context/SocketContext.jsx';
 import IncidentCard from './IncidentCard.jsx';
 import useInfiniteScroll from '../hooks/useInfiniteScroll.jsx';
@@ -22,24 +23,11 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
     setLoading(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
-      const query = new URLSearchParams({
+      const data = await incidentsAPI.getAll({
         page: pageNum,
         limit: 5,
         category: category === 'All' ? '' : category,
-      }).toString();
-      
-      const response = await fetch(`http://localhost:3000/api/incidents?${query}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
       });
-      
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch incidents');
-      }
 
       // Append or replace incidents based on append flag
       if (append && pageNum > 1) {

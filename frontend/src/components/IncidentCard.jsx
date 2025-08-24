@@ -1,6 +1,7 @@
 import { useState, useContext, forwardRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { incidentsAPI } from '../utils/api.js';
 import CommentList from './CommentList.jsx';
 import CommentForm from './CommentForm.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
@@ -76,19 +77,7 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
   // Delete incident function
   const handleDeleteIncident = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/incidents/${incident._id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to delete incident');
-      }
+      const data = await incidentsAPI.delete(incident._id);
 
       // Close modals
       setShowConfirmModal(false);
@@ -156,18 +145,14 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
       });
 
       // Fetch complete incident details
-      const response = await fetch(`http://localhost:3000/api/incidents/${incident._id}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
-        },
-      });
-
       let incidentData = incident;
 
-      if (response.ok) {
-        const fullData = await response.json();
+      try {
+        const fullData = await incidentsAPI.getById(incident._id);
         incidentData = fullData.incident || incident;
+      } catch (fetchError) {
+        // If fetch fails, use the existing incident data
+        console.warn('Could not fetch full incident details, using available data:', fetchError);
       }
 
       // Create PDF with UTF-8 support
@@ -348,21 +333,7 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
     const isRemovingVote = previousVote === voteType;
     
     try {
-      const response = await fetch(`http://localhost:3000/api/incidents/${incident._id}/vote`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ voteType }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await incidentsAPI.vote(incident._id, voteType);
       console.log('Vote response:', data); // Debug log
       
       // Update votes state with the response data

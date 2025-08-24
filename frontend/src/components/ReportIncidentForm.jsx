@@ -1,5 +1,6 @@
 import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { incidentsAPI } from '../utils/api.js';
 import { toast } from 'react-toastify';
 
 function ReportIncidentForm({ onClose, prefilledData = {} }) {
@@ -79,40 +80,17 @@ function ReportIncidentForm({ onClose, prefilledData = {} }) {
     setIsSubmitting(true);
     
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/incidents/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: formData.title,
-          description: formData.description,
-          address: formData.address || undefined,
-          lat: formData.lat ? formData.lat.toString() : undefined,
-          lng: formData.lng ? formData.lng.toString() : undefined,
-          category: formData.category,
-          severity: formData.severity || 'Medium',
-        }),
-      });
+      const incidentData = {
+        title: formData.title,
+        description: formData.description,
+        address: formData.address || undefined,
+        lat: formData.lat ? formData.lat.toString() : undefined,
+        lng: formData.lng ? formData.lng.toString() : undefined,
+        category: formData.category,
+        severity: formData.severity || 'Medium',
+      };
       
-      const data = await response.json();
-      if (!response.ok) {
-        // Handle validation errors that come as an array of objects
-        let errorMessage = 'Failed to submit incident';
-        if (data.message) {
-          if (Array.isArray(data.message)) {
-            // If message is an array of error objects, extract the messages
-            errorMessage = data.message.map(err => err.message || err).join(', ');
-          } else if (typeof data.message === 'string') {
-            errorMessage = data.message;
-          } else {
-            errorMessage = JSON.stringify(data.message);
-          }
-        }
-        throw new Error(errorMessage);
-      }
+      const data = await incidentsAPI.create(incidentData);
       
       // Show success toast
       toast.success('🎉 ' + (data.message || 'Incident reported successfully!'), {

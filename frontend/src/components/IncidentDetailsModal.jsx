@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { incidentsAPI } from '../utils/api.js';
 import { useSocket } from '../context/SocketContext.jsx';
 import { toast } from 'react-toastify';
 
@@ -21,25 +22,7 @@ function IncidentDetailsModal({ incident, onClose }) {
       setLoading(true);
       setError('');
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3000/api/incidents/${incident._id}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
-        });
-        
-        // Check if response is actually JSON before parsing
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const textResponse = await response.text();
-          throw new Error(`Server returned non-JSON response: ${textResponse.substring(0, 100)}`);
-        }
-        
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || 'Failed to fetch incident details');
-        }
+        const data = await incidentsAPI.getById(incident._id);
         setDetails({ ...data.incident, severity: incident.severity });
         setVotes({
           upvotes: data.incident.votes.upvotes || 0,
@@ -133,21 +116,7 @@ function IncidentDetailsModal({ incident, onClose }) {
     const isRemovingVote = previousVote === voteType;
     
     try {
-      const response = await fetch(`http://localhost:3000/api/incidents/${incident._id}/vote`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ voteType }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await incidentsAPI.vote(incident._id, voteType);
       
       // Update votes state with the response data
       setVotes({

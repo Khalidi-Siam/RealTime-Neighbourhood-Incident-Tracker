@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useContext } from 'react';
 import { useSocket } from '../context/SocketContext.jsx';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { incidentsAPI } from '../utils/api.js';
 import IncidentCard from '../components/IncidentCard.jsx';
 import useInfiniteScroll from '../hooks/useInfiniteScroll.jsx';
 import { toast } from 'react-toastify';
@@ -43,29 +44,17 @@ function Feed() {
     setError('');
     
     try {
-      const token = localStorage.getItem('token');
-      const query = new URLSearchParams({
+      const filterParams = {
         page: pageNum,
         limit: 10,
         category: filters.category === 'All' ? '' : filters.category,
         severity: filters.severity === 'All' ? '' : filters.severity,
         sortBy: filters.sortBy,
         order: filters.order,
-      }).toString();
+      };
       
-      const response = await fetch(`http://localhost:3000/api/incidents?${query}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`HTTP ${response.status}: ${text.slice(0, 100)}`);
-      }
-
-      const data = await response.json();
+      const data = await incidentsAPI.getAll(filterParams);
+      
       if (!data.incidents || !data.pagination) {
         throw new Error('Invalid response format: incidents or pagination missing');
       }

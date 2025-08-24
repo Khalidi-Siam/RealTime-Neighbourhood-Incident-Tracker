@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect } from 'react';
+import { authAPI } from '../utils/api.js';
 
 export const AuthContext = createContext();
 
@@ -19,27 +20,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await fetch('http://localhost:3000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        // Handle validation errors properly
-        let errorMessage = 'Login failed';
-        if (data.message) {
-          if (Array.isArray(data.message)) {
-            // Handle validation errors from backend
-            errorMessage = data.message.map(err => err.message).join(', ');
-          } else if (typeof data.message === 'object') {
-            errorMessage = JSON.stringify(data.message);
-          } else {
-            errorMessage = data.message;
-          }
-        }
-        throw new Error(errorMessage);
-      }
+      const data = await authAPI.login(email, password);
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       setToken(data.token);
@@ -52,27 +33,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (username, email, phone, password) => {
     try {
-      const response = await fetch('http://localhost:3000/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, phone, password }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        // Handle validation errors properly
-        let errorMessage = 'Registration failed';
-        if (data.message) {
-          if (Array.isArray(data.message)) {
-            // Handle validation errors from backend
-            errorMessage = data.message.map(err => err.message).join(', ');
-          } else if (typeof data.message === 'object') {
-            errorMessage = JSON.stringify(data.message);
-          } else {
-            errorMessage = data.message;
-          }
-        }
-        throw new Error(errorMessage);
-      }
+      const data = await authAPI.register(username, email, phone, password);
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       setToken(data.token);
