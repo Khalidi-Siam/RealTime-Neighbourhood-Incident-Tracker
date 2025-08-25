@@ -82,8 +82,33 @@ const optionalAuthentication = async (req, res, next) => {
     }
 };
 
+// Middleware to check if user is either the owner of the resource or an admin
+const authorizeOwnerOrAdmin = (userIdParam = 'userId') => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ 
+                message: 'Access denied. Authentication required.' 
+            });
+        }
+
+        const resourceUserId = req.params[userIdParam] || req.user._id.toString();
+        const currentUserId = req.user._id.toString();
+        const userRole = req.user.role;
+
+        // Allow if user is admin or if user is the owner of the resource
+        if (userRole === 'admin' || currentUserId === resourceUserId) {
+            return next();
+        }
+
+        return res.status(403).json({ 
+            message: 'Access denied. You can only access your own resources or need admin privileges.' 
+        });
+    };
+};
+
 module.exports = {
     authenticateToken,
     authorizeRoles,
-    optionalAuthentication
+    optionalAuthentication,
+    authorizeOwnerOrAdmin
 };

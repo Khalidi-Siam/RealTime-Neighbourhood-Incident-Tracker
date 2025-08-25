@@ -79,15 +79,36 @@ const getAllIncidents = async (req, res) => {
       throw new Error('Incident or Vote model not defined');
     }
 
-    // Get incidents with pagination
-    let incidents = await Incident.find(filter)
-      .populate('submittedBy', 'username email')
-      .skip(skip)
-      .limit(parseInt(limit))
-      .lean();
+    // Build sort object for MongoDB query
+    let mongoSort = {};
+    const sortOrder = parseInt(order);
+    
+    if (sortBy === 'timestamp' || sortBy === 'timestampAsc') {
+      mongoSort.timestamp = sortOrder;
+    } else {
+      // For vote-based sorting, we'll handle it after getting vote counts
+      mongoSort.timestamp = -1; // Default to newest first for vote sorting
+    }
 
-    // Get vote counts and sort if needed
-    const incidentsWithVotes = await Promise.all(incidents.map(async (incident) => {
+    // Get incidents with filtering and sorting, but without pagination first for vote-based sorting
+    let allFilteredIncidents;
+    if (sortBy === 'votes.total' || sortBy === 'votes.upvotes') {
+      // For vote-based sorting, we need all filtered incidents first
+      allFilteredIncidents = await Incident.find(filter)
+        .populate('submittedBy', 'username email')
+        .lean();
+    } else {
+      // For timestamp sorting, we can apply pagination directly
+      allFilteredIncidents = await Incident.find(filter)
+        .populate('submittedBy', 'username email')
+        .sort(mongoSort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+    }
+
+    // Get vote counts for incidents
+    const incidentsWithVotes = await Promise.all(allFilteredIncidents.map(async (incident) => {
       const upvotes = await Vote.countDocuments({ 
         incident: incident._id, 
         voteType: 'upvote' 
@@ -119,32 +140,29 @@ const getAllIncidents = async (req, res) => {
       };
     }));
 
-    // Sort incidents
-    const sortOrder = parseInt(order);
+    // Apply vote-based sorting and pagination if needed
+    let finalIncidents = incidentsWithVotes;
+    
     if (sortBy === 'votes.total') {
-      incidentsWithVotes.sort((a, b) => {
+      finalIncidents.sort((a, b) => {
         return sortOrder === -1 ? (b.votes.total - a.votes.total) : (a.votes.total - b.votes.total);
       });
+      // Apply pagination after sorting
+      finalIncidents = finalIncidents.slice(skip, skip + parseInt(limit));
     } else if (sortBy === 'votes.upvotes') {
-      incidentsWithVotes.sort((a, b) => {
+      finalIncidents.sort((a, b) => {
         return sortOrder === -1 ? (b.votes.upvotes - a.votes.upvotes) : (a.votes.upvotes - b.votes.upvotes);
       });
-    } else if (sortBy === 'timestampAsc') {
-      incidentsWithVotes.sort((a, b) => {
-        return sortOrder === -1 ? (new Date(b.timestamp) - new Date(a.timestamp)) : (new Date(a.timestamp) - new Date(b.timestamp));
-      });
-    } else {
-      // Default timestamp sorting - newest first when order = -1
-      incidentsWithVotes.sort((a, b) => {
-        return sortOrder === -1 ? (new Date(b.timestamp) - new Date(a.timestamp)) : (new Date(a.timestamp) - new Date(b.timestamp));
-      });
+      // Apply pagination after sorting
+      finalIncidents = finalIncidents.slice(skip, skip + parseInt(limit));
     }
+    // For timestamp sorting, pagination was already applied in the query
 
     const total = await Incident.countDocuments(filter);
 
     const response = {
       message: 'Incidents retrieved successfully',
-      incidents: incidentsWithVotes,
+      incidents: finalIncidents,
       pagination: {
         currentPage: parseInt(page),
         totalPages: Math.ceil(total / limit),

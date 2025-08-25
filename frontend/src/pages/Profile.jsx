@@ -1,12 +1,19 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { authAPI } from '../utils/api.js';
+import EditProfileModal from '../components/EditProfileModal.jsx';
+import ConfirmModal from '../components/ConfirmModal.jsx';
+import AlertModal from '../components/AlertModal.jsx';
 
 function Profile() {
-  const { currentUser, token } = useContext(AuthContext);
+  const { currentUser, token, logout } = useContext(AuthContext);
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -26,6 +33,36 @@ function Profile() {
       setLoading(false);
     }
   }, [token]);
+
+  const handleUpdateProfile = async (updateData) => {
+    try {
+      const data = await authAPI.updateProfile(updateData);
+      setProfileData(data.user);
+      setSuccessMessage('Profile updated successfully!');
+      setShowSuccessModal(true);
+    } catch (err) {
+      throw new Error(err.message);
+    }
+  };
+
+  const handleDeleteProfile = async () => {
+    try {
+      await authAPI.deleteProfile();
+      setShowDeleteModal(false);
+      setSuccessMessage('Profile deleted successfully. You will be logged out.');
+      setShowSuccessModal(true);
+      
+      // Logout and redirect after a short delay
+      setTimeout(() => {
+        logout();
+        // Navigate to home using hash-based routing
+        window.location.hash = 'map';
+      }, 2000);
+    } catch (err) {
+      setError(err.message);
+      setShowDeleteModal(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -136,9 +173,58 @@ function Profile() {
                   </div>
                 </div>
               </div> */}
+
+              <div className="profile__section">
+                <h3 className="profile__section-title">Account Actions</h3>
+                <div className="profile__actions">
+                  <button
+                    className="btn btn--primary profile__action-btn"
+                    onClick={() => setShowEditModal(true)}
+                  >
+                    <span className="profile__action-icon">✏️</span>
+                    Edit Profile
+                  </button>
+                  <button
+                    className="btn btn--danger profile__action-btn"
+                    onClick={() => setShowDeleteModal(true)}
+                  >
+                    <span className="profile__action-icon">🗑️</span>
+                    Delete Account
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Edit Profile Modal */}
+        <EditProfileModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          currentUser={profileData}
+          onUpdate={handleUpdateProfile}
+        />
+
+        {/* Delete Confirmation Modal */}
+        <ConfirmModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDeleteProfile}
+          title="Delete Account"
+          message="Are you sure you want to delete your account? This action cannot be undone. All your incidents, comments, votes, and reports will be permanently removed."
+          confirmText="Delete Account"
+          cancelText="Keep Account"
+          type="danger"
+        />
+
+        {/* Success Modal */}
+        <AlertModal
+          isOpen={showSuccessModal}
+          onClose={() => setShowSuccessModal(false)}
+          title="Success"
+          message={successMessage}
+          type="success"
+        />
       </div>
     </div>
   );

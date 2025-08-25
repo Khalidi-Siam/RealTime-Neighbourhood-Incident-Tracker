@@ -5,6 +5,15 @@ import { useSocket } from '../context/SocketContext.jsx';
 import IncidentCard from './IncidentCard.jsx';
 import useInfiniteScroll from '../hooks/useInfiniteScroll.jsx';
 
+/**
+ * MapSidebar Component - Displays incidents in a sidebar next to the map
+ * 
+ * Key differences from Feed:
+ * - Always sorts by timestamp (latest first) - no user-configurable sorting
+ * - Uses backend filtering for both category and severity
+ * - Smaller page size (5 vs 10) for better map integration
+ * - Maintains chronological order for real-time updates
+ */
 function MapSidebar({ onIncidentSelect, selectedIncident }) {
   const { currentUser } = useContext(AuthContext);
   const { socket, joinIncidentsRoom, leaveIncidentsRoom } = useSocket();
@@ -17,17 +26,26 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Fetch incidents from backend
-  const fetchIncidents = async (pageNum = 1, category = 'All', append = false) => {
+  // Fetch incidents from backend - Map sidebar specific filtering
+  const fetchMapSidebarIncidents = async (pageNum = 1, append = false) => {
     if (pageNum === 1) setInitialLoading(true);
     setLoading(true);
     setError('');
+    
+    const filterParams = {
+      page: pageNum,
+      limit: 5,
+      category: categoryFilter === 'All' ? '' : categoryFilter,
+      severity: severityFilter === 'All' ? '' : severityFilter,
+      sortBy: 'timestamp', // Always sort by timestamp for map sidebar
+      order: -1, // Always show latest first (-1 = descending)
+    };
+    
+    console.log('MapSidebar: Fetching incidents with params:', filterParams);
+    
     try {
-      const data = await incidentsAPI.getAll({
-        page: pageNum,
-        limit: 5,
-        category: category === 'All' ? '' : category,
-      });
+      const data = await incidentsAPI.getAll(filterParams);
+      console.log('MapSidebar: Received data:', data);
 
       // Append or replace incidents based on append flag
       if (append && pageNum > 1) {
@@ -38,6 +56,7 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
       
       setHasNextPage(data.pagination.hasNext);
     } catch (err) {
+      console.error('MapSidebar: Error fetching incidents:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -50,8 +69,8 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
     if (!hasNextPage || loading) return;
     const nextPage = page + 1;
     setPage(nextPage);
-    await fetchIncidents(nextPage, categoryFilter, true);
-  }, [hasNextPage, loading, page, categoryFilter]);
+    await fetchMapSidebarIncidents(nextPage, true);
+  }, [hasNextPage, loading, page, categoryFilter, severityFilter]);
 
   // Infinite scroll hook
   const [lastElementRef, isFetching] = useInfiniteScroll(fetchMoreIncidents, hasNextPage);
@@ -71,8 +90,10 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
         const exists = prevIncidents.some(incident => incident._id === data.incident._id);
         if (exists) return prevIncidents;
         
-        // Add to the beginning of the list (most recent first)
-        return [data.incident, ...prevIncidents];
+        // Add to the beginning of the list (most recent first) and maintain sort order
+        const newIncidents = [data.incident, ...prevIncidents];
+        // Sort by timestamp to ensure proper chronological order (newest first)
+        return newIncidents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       });
     };
 
@@ -166,26 +187,31 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
     };
   }, [socket, joinIncidentsRoom, leaveIncidentsRoom, currentUser]);
 
-  // Initial fetch and refetch on category change or incident create/delete
+  // Initial fetch and refetch on filter changes
   useEffect(() => {
+    console.log('MapSidebar: Filter changed, resetting page and fetching incidents', {
+      categoryFilter,
+      severityFilter
+    });
     setPage(1);
-    fetchIncidents(1, categoryFilter, false);
+    setIncidents([]); // Clear existing incidents
+    fetchMapSidebarIncidents(1, false);
 
     const handleIncidentUpdate = () => {
+      console.log('MapSidebar: Incident update detected, refetching');
       setPage(1);
-      fetchIncidents(1, categoryFilter, false);
+      setIncidents([]); // Clear existing incidents
+      fetchMapSidebarIncidents(1, false);
     };
 
     window.addEventListener('incidentCreated', handleIncidentUpdate);
     return () => window.removeEventListener('incidentCreated', handleIncidentUpdate);
-  }, [categoryFilter]);
+  }, [categoryFilter, severityFilter]); // Trigger on both category and severity changes
 
-  // Filter incidents by severity (client-side)
-  const filteredIncidents = severityFilter === 'All'
-    ? incidents
-    : incidents.filter((incident) => incident.severity === severityFilter);
+  // Remove the client-side filtering since we're now filtering on the backend
+  const filteredIncidents = incidents;
 
-  // Handle filter changes
+  // Handle filter changes - Map sidebar uses backend filtering for both category and severity
   const handleCategoryChange = (e) => {
     setCategoryFilter(e.target.value);
     // Reset will be handled by useEffect
@@ -193,6 +219,7 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
 
   const handleSeverityChange = (e) => {
     setSeverityFilter(e.target.value);
+    // Reset will be handled by useEffect
   };
 
   return (

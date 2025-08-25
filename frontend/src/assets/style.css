@@ -5308,6 +5308,97 @@ body.modal-open {
   font-size: var(--font-size-base);
 }
 
+/* Profile Actions */
+.profile__actions {
+  display: flex;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+}
+
+.profile__action-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-20);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.profile__action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.profile__action-icon {
+  font-size: var(--font-size-base);
+}
+
+/* Edit Profile Modal */
+.edit-profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  max-width: 100%;
+}
+
+.edit-profile-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.edit-profile-form .form-group label {
+  font-weight: 500;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+.edit-profile-form .form-input {
+  padding: var(--space-12);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-base);
+  background: var(--color-background);
+  color: var(--color-text);
+  transition: border-color 0.2s ease;
+}
+
+.edit-profile-form .form-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.edit-profile-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-12);
+  padding-top: var(--space-16);
+  border-top: 1px solid var(--color-card-border);
+}
+
+.edit-profile-form .error-message {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-12);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.edit-profile-form .error-icon {
+  font-size: var(--font-size-base);
+}
+
+.btn--small {
+  padding: var(--space-8) var(--space-12);
+  font-size: var(--font-size-sm);
+}
+
 /* Dark mode adjustments */
 [data-theme="dark"] .nav__profile-btn {
   color: var(--color-text);
@@ -6061,6 +6152,34 @@ body.modal-open {
   background: rgba(var(--color-error-rgb), 0.1);
   color: var(--color-error);
   border: 1px solid rgba(var(--color-error-rgb), 0.2);
+}
+
+/* Admin User Card Actions */
+.admin-user-card__actions {
+  margin-top: var(--space-16);
+  padding-top: var(--space-16);
+  border-top: 1px solid var(--color-card-border-inner);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.admin-user-delete-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  transition: all 0.2s ease;
+}
+
+.admin-user-delete-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+.admin-user-delete-btn .btn-icon {
+  font-size: var(--font-size-sm);
 }
 
 /* Responsive Design for Admin Features */

@@ -26,6 +26,8 @@ function AdminDashboard() {
   const [usersTotalPages, setUsersTotalPages] = useState(0);
   const [totalUsersCount, setTotalUsersCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
 
   // Check if user is admin
   useEffect(() => {
@@ -146,6 +148,31 @@ function AdminDashboard() {
       setProcessing(prev => ({ ...prev, [incidentId]: false }));
       setShowConfirmModal(false);
       setConfirmAction(null);
+    }
+  };
+
+  const handleDeleteUser = (user) => {
+    setUserToDelete(user);
+    setShowDeleteUserModal(true);
+  };
+
+  const executeDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    try {
+      const data = await authAPI.adminDeleteUser(userToDelete._id);
+      toast.success(data.message || `User ${userToDelete.username} deleted successfully`);
+      
+      // Refresh the users list
+      await fetchUsers();
+      // Also refresh total count
+      await fetchTotalUsersCount();
+      
+    } catch (err) {
+      toast.error(`Error deleting user: ` + err.message);
+    } finally {
+      setShowDeleteUserModal(false);
+      setUserToDelete(null);
     }
   };
 
@@ -426,6 +453,17 @@ function AdminDashboard() {
                               </span>
                             </div>
                           </div>
+                          
+                          <div className="admin-user-card__actions">
+                            <button
+                              className="btn btn--danger btn--small admin-user-delete-btn"
+                              onClick={() => handleDeleteUser(user)}
+                              title="Delete User"
+                            >
+                              <span className="btn-icon">🗑️</span>
+                              Delete User
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -471,6 +509,23 @@ function AdminDashboard() {
           message={confirmAction.message}
           confirmText={confirmAction.confirmText}
           type={confirmAction.modalType}
+        />
+      )}
+
+      {/* Delete User Confirmation Modal */}
+      {showDeleteUserModal && userToDelete && (
+        <ConfirmModal
+          isOpen={showDeleteUserModal}
+          onClose={() => {
+            setShowDeleteUserModal(false);
+            setUserToDelete(null);
+          }}
+          onConfirm={executeDeleteUser}
+          title="Delete User Account"
+          message={`Are you sure you want to permanently delete ${userToDelete.username}'s account? This action cannot be undone and will remove all their incidents, comments, votes, and reports.`}
+          confirmText="Delete User"
+          cancelText="Cancel"
+          type="danger"
         />
       )}
     </div>

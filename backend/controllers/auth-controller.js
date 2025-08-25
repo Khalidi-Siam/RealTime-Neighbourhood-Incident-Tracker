@@ -1,4 +1,9 @@
 const User = require('../models/user-model');
+const Comment = require('../models/comment-model');
+const Incident = require('../models/incident-model');
+const Vote = require('../models/vote-model');
+const IncidentReport = require('../models/false-report-model');
+const Notification = require('../models/notification-model');
 const bcrypt = require('bcryptjs');
 const { generateToken } = require('../utils/jwt-utils');
 
@@ -155,10 +160,177 @@ const getUsersCount = async (req, res) => {
     }
 };
 
+const updateProfile = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { username, email, phone, currentPassword, newPassword } = req.body;
+
+        // Find the current user
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Check if email or username is being changed and already exists
+        if (email && email !== user.email) {
+            const emailExists = await User.findOne({ email: email, _id: { $ne: userId } });
+            if (emailExists) {
+                return res.status(400).json({ message: 'Email already exists' });
+            }
+        }
+
+        if (username && username !== user.username) {
+            const usernameExists = await User.findOne({ username: username, _id: { $ne: userId } });
+            if (usernameExists) {
+                return res.status(400).json({ message: 'Username already exists' });
+            }
+        }
+
+        // Handle password change
+        if (newPassword) {
+            if (!currentPassword) {
+                return res.status(400).json({ message: 'Current password is required to change password' });
+            }
+
+            // Verify current password
+            const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+            if (!isCurrentPasswordValid) {
+                return res.status(400).json({ message: 'Current password is incorrect' });
+            }
+
+            // Hash new password
+            const saltRounds = await bcrypt.genSalt(10);
+            const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+            user.password = hashedNewPassword;
+        }
+
+        // Update other fields
+        if (username) user.username = username;
+        if (email) user.email = email;
+        if (phone) user.phone = phone;
+
+        // Save the updated user
+        await user.save();
+
+        res.status(200).json({
+            message: 'Profile updated successfully',
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                phone: user.phone,
+                role: user.role
+            }
+        });
+
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+const deleteProfile = async (req, res) => {
+    try {
+        const userId = req.user._id;
+
+        // Check if user exists
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Don't allow admin users to delete their profiles through this endpoint
+        if (user.role === 'admin') {
+            return res.status(403).json({ message: 'Admin accounts cannot be deleted through this endpoint' });
+        }
+
+        // Start deletion process - Remove all related data
+        // 1. Delete all comments by this user
+        await Comment.deleteMany({ user: userId });
+
+        // 2. Delete all incidents submitted by this user
+        await Incident.deleteMany({ submittedBy: userId });
+
+        // 3. Delete all votes by this user
+        await Vote.deleteMany({ user: userId });
+
+        // 4. Delete all false reports by this user
+        await IncidentReport.deleteMany({ reportedBy: userId });
+
+        // 5. Delete all notifications for this user
+        await Notification.deleteMany({ toUser: userId });
+
+        // 6. Finally, delete the user account
+        await User.findByIdAndDelete(userId);
+
+        res.status(200).json({
+            message: 'Profile and all related data deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('Error deleting profile:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// Admin deletes a specific user
+const adminDeleteUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const adminId = req.user._id;
+
+        // Check if the user to be deleted exists
+        const userToDelete = await User.findById(userId);
+        if (!userToDelete) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Prevent admin from deleting themselves
+        if (userId === adminId.toString()) {
+            return res.status(400).json({ message: 'Admin cannot delete their own account through this endpoint' });
+        }
+
+        // Prevent admin from deleting other admin users
+        if (userToDelete.role === 'admin') {
+            return res.status(403).json({ message: 'Cannot delete other admin accounts' });
+        }
+
+        // Start deletion process - Remove all related data (same as user self-delete)
+        // 1. Delete all comments by this user
+        await Comment.deleteMany({ user: userId });
+
+        // 2. Delete all incidents submitted by this user
+        await Incident.deleteMany({ submittedBy: userId });
+
+        // 3. Delete all votes by this user
+        await Vote.deleteMany({ user: userId });
+
+        // 4. Delete all false reports by this user
+        await IncidentReport.deleteMany({ reportedBy: userId });
+
+        // 5. Delete all notifications for this user
+        await Notification.deleteMany({ toUser: userId });
+
+        // 6. Finally, delete the user account
+        await User.findByIdAndDelete(userId);
+
+        res.status(200).json({
+            message: `User ${userToDelete.username} and all related data deleted successfully`
+        });
+
+    } catch (error) {
+        console.error('Error deleting user by admin:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 module.exports = {
     register,
     login,
     getProfile,
     getAllUsers,
-    getUsersCount
+    getUsersCount,
+    updateProfile,
+    deleteProfile,
+    adminDeleteUser
 };

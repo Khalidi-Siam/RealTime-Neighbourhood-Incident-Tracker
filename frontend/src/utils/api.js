@@ -137,6 +137,27 @@ export const authAPI = {
     return handleResponse(response);
   },
 
+  // Update user profile
+  updateProfile: async (profileData) => {
+    const baseUrl = await getApiBaseUrl();
+    const response = await fetch(`${baseUrl}/auth/profile`, {
+      method: 'PUT',
+      headers: getAuthHeaders(true),
+      body: JSON.stringify(profileData),
+    });
+    return handleResponse(response);
+  },
+
+  // Delete user profile
+  deleteProfile: async () => {
+    const baseUrl = await getApiBaseUrl();
+    const response = await fetch(`${baseUrl}/auth/profile`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(true),
+    });
+    return handleResponse(response);
+  },
+
   // Admin: Get all users
   getAllUsers: async (page = 1, limit = 20, search = '') => {
     const baseUrl = await getApiBaseUrl();
@@ -144,6 +165,16 @@ export const authAPI = {
     if (search) params.append('search', search);
     
     const response = await fetch(`${baseUrl}/auth/admin/users?${params}`, {
+      headers: getAuthHeaders(true),
+    });
+    return handleResponse(response);
+  },
+
+  // Admin: Delete a specific user
+  adminDeleteUser: async (userId) => {
+    const baseUrl = await getApiBaseUrl();
+    const response = await fetch(`${baseUrl}/auth/admin/users/${userId}`, {
+      method: 'DELETE',
       headers: getAuthHeaders(true),
     });
     return handleResponse(response);
