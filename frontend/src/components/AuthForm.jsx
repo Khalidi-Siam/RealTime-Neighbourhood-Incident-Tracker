@@ -199,7 +199,7 @@ function AuthForm({ onClose }) {
             disabled={isLoading}
           >
             <span className="modern-auth__tab-icon">👤</span>
-            Sign In
+            Login
           </button>
           <button
             className={`modern-auth__tab ${activeTab === 'register' ? 'modern-auth__tab--active' : ''}`}
@@ -213,7 +213,7 @@ function AuthForm({ onClose }) {
             disabled={isLoading}
           >
             <span className="modern-auth__tab-icon">✨</span>
-            Sign Up
+            Register
           </button>
         </div>
         <div className="modern-auth__tab-indicator"></div>

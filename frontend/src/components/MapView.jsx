@@ -8,8 +8,6 @@ import ReportModal from './ReportModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
 import PopupContent from './PopupContent.jsx';
 import MapClickModal from './MapClickModal.jsx';
-import useReportStatus from '../hooks/useReportStatus.jsx';
-import useReportCheck from '../hooks/useReportCheck.jsx';
 import { handleReportAction, canDeleteIncident, canReportIncident } from '../utils/incidentActions.js';
 import { toast } from 'react-toastify';
 import 'leaflet/dist/leaflet.css';
@@ -55,7 +53,7 @@ const createCustomIcon = (severity, isSelected = false, isFalseReport = false) =
   });
 };
 
-function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
+function MapView({ selectedIncident, centerTrigger, onMarkerClick, onUserLocationRequest }) {
   const { currentUser, token } = useContext(AuthContext);
   const { socket, joinIncidentsRoom, leaveIncidentsRoom } = useSocket();
   const [incidents, setIncidents] = useState([]);
@@ -65,6 +63,7 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
   const [locationLoading, setLocationLoading] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null); // Track which menu is open
   const locationRequestedRef = useRef(false); // Track when user explicitly requests location
+  const locationRequestTimeRef = useRef(0); // Track timestamp of location request
   const markersRef = useRef({}); // Store marker references
   
   // Modal states
@@ -243,6 +242,12 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
   const getCurrentLocation = () => {
     setLocationLoading(true);
     locationRequestedRef.current = true; // Mark that user explicitly requested location
+    locationRequestTimeRef.current = Date.now(); // Record timestamp
+    
+    // Notify parent component that user requested location
+    if (onUserLocationRequest) {
+      onUserLocationRequest();
+    }
     
     if (!navigator.geolocation) {
       console.log('Geolocation is not supported by this browser.');
@@ -251,7 +256,7 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
       
       // Center to Dhaka when geolocation not supported
       if (window.mapInstance) {
-        window.mapInstance.setView([23.8103, 90.4125], 13, {
+        window.mapInstance.flyTo([23.8103, 90.4125], 13, {
           animate: true,
           duration: 1.5
         });
@@ -264,15 +269,24 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
       (position) => {
         const { latitude, longitude } = position.coords;
         setLocationLoading(false);
-        console.log('Location found:', latitude, longitude);
+        console.log('Location found successfully:', latitude, longitude);
         
-        // Center map to user location
+        // Close any open popups before centering to user location
         if (window.mapInstance) {
-          window.mapInstance.setView([latitude, longitude], 15, {
+          console.log('Flying to user location:', latitude, longitude);
+          window.mapInstance.closePopup();
+          window.mapInstance.flyTo([latitude, longitude], 15, {
             animate: true,
             duration: 1.5
           });
         }
+        
+        // Clear the location request flag after map animation completes
+        setTimeout(() => {
+          locationRequestedRef.current = false;
+          locationRequestTimeRef.current = 0;
+          console.log('Location request flags cleared');
+        }, 2000); // Clear after map animation completes
         
         // Show success notification
         showLocationSuccess('Location found successfully!');
@@ -283,11 +297,17 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
         
         // Always return to Dhaka view on error
         if (window.mapInstance) {
-          window.mapInstance.setView([23.8103, 90.4125], 13, {
+          window.mapInstance.flyTo([23.8103, 90.4125], 13, {
             animate: true,
             duration: 1.5
           });
         }
+        
+        // Clear location request flags after error
+        setTimeout(() => {
+          locationRequestedRef.current = false;
+          locationRequestTimeRef.current = 0;
+        }, 2000);
         
         // Show user-friendly message based on error type
         let locationError = '';
@@ -490,7 +510,15 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
     
     // Handle selected incident centering (triggers every time centerTrigger changes)
     useEffect(() => {
+      // If centerTrigger changed, it means user explicitly requested to locate an incident
+      // This should work immediately, even after location requests
       if (selectedIncident && selectedIncident.location.lat && selectedIncident.location.lng) {
+        console.log('Centering map on incident:', selectedIncident.title);
+        
+        // Clear location request flags since user explicitly wants to see an incident
+        locationRequestedRef.current = false;
+        locationRequestTimeRef.current = 0;
+        
         map.flyTo([selectedIncident.location.lat, selectedIncident.location.lng], 15, {
           duration: 1.5,
           easeLinearity: 0.25
@@ -504,7 +532,6 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
           }
         }, 1600); // Wait for flyTo animation to complete (1.5s + 100ms buffer)
       }
-      // Now this will trigger even for the same incident due to centerTrigger dependency
     }, [selectedIncident, centerTrigger, map]);
 
     return null;
@@ -566,12 +593,16 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick }) {
       {/* Map Style Controls */}
       <div className="map-style-controls">
         <button 
-          className="style-btn location-btn"
+          className="style-btn location-btn my-location-btn"
           onClick={getCurrentLocation}
-          title="Get My Location"
+          title="Find My Location"
           disabled={locationLoading}
         >
-          {locationLoading ? '🔄' : '📍'}
+          {locationLoading ? (
+            <span className="location-loading">🔄</span>
+          ) : (
+            <span className="my-location-icon">🎯</span>
+          )}
         </button>
         <button 
           className={`style-btn ${mapStyle === 'dark' ? 'active' : ''}`}

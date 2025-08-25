@@ -4,6 +4,22 @@ import { incidentsAPI } from '../utils/api.js';
 import { useSocket } from '../context/SocketContext.jsx';
 import { toast } from 'react-toastify';
 
+// Category colors and icons mapping - same as IncidentCard
+const categoryConfig = {
+  'Crime': { color: '#e53e3e', icon: '🚨' },
+  'Accident': { color: '#d69e2e', icon: '🚦' },
+  'Lost': { color: '#38a169', icon: '🔍' },
+  'Utility': { color: '#3182ce', icon: '⚡' },
+  'Other': { color: '#6b7280', icon: '📝' },
+  'Safety': { color: '#e53e3e', icon: '🚨' },
+  'Infrastructure': { color: '#4a5568', icon: '🏗️' },
+  'Utilities': { color: '#3182ce', icon: '⚡' },
+  'Traffic': { color: '#d69e2e', icon: '🚦' },
+  'Animal': { color: '#38a169', icon: '🐕' },
+  'Environment': { color: '#00b894', icon: '🌱' },
+  'Noise': { color: '#a855f7', icon: '🔊' }
+};
+
 function IncidentDetailsModal({ incident, onClose }) {
   const { currentUser, token } = useContext(AuthContext);
   const { socket, joinIncidentRoom, leaveIncidentRoom } = useSocket();
@@ -190,54 +206,129 @@ function IncidentDetailsModal({ incident, onClose }) {
   //   }
   // };
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="incident-details__loading">
+        <div className="loading-spinner"></div>
+        <p>Loading incident details...</p>
+      </div>
+    );
+  }
+  
   if (!details) return null;
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getSeverityIcon = (severity) => {
+    switch (severity?.toLowerCase()) {
+      case 'low': return '🟢';
+      case 'medium': return '🟡';
+      case 'high': return '🔴';
+      default: return '⚪';
+    }
+  };
+
+  const getCategoryConfig = (category) => {
+    return categoryConfig[category] || categoryConfig['Other'];
+  };
+
+  const categoryInfo = getCategoryConfig(details.category);
 
   return (
     <div className="incident-details">
-      {error && <div className="alert alert--error">{error}</div>}
-      {success && <div className="alert alert--success">{success}</div>}
-      <h3>{details.title}</h3>
-      <div className="incident-details__meta">
-        <span className="incident-details__category">{details.category}</span>
-        <span className={`incident-details__severity incident-details__severity--${details.severity.toLowerCase()}`}>
-          {details.severity}
-        </span>
-      </div>
-      <p>{details.description}</p>
-      <div className="incident-details__location">
-        <span role="img" aria-label="Location">📍</span>
-        {details.location.address || 'Location not specified'}
-      </div>
-      <div className="incident-details__reported">
-        Reported by {details.submittedBy?.username || 'Anonymous'} on{' '}
-        {new Date(details.timestamp).toLocaleDateString()}
-      </div>
-      <div className="incident-details__votes">
-        <div className="voting-actions">
-          <button
-            className={`btn btn--icon-only ${votes.userVote === 'upvote' ? 'btn--active' : ''}`}
-            onClick={() => handleVote('upvote')}
-            title={`Upvote (${votes.upvotes})`}
-          >
-            <span role="img" aria-label="Upvote">👍</span>
-            <span className="vote-count">{votes.upvotes}</span>
-          </button>
-          <button
-            className={`btn btn--icon-only ${votes.userVote === 'downvote' ? 'btn--active' : ''}`}
-            onClick={() => handleVote('downvote')}
-            title={`Downvote (${votes.downvotes})`}
-          >
-            <span role="img" aria-label="Downvote">👎</span>
-            <span className="vote-count">{votes.downvotes}</span>
-          </button>
+      {error && <div className="incident-details__alert incident-details__alert--error">{error}</div>}
+      {success && <div className="incident-details__alert incident-details__alert--success">{success}</div>}
+      
+      {/* Main Content */}
+      <div className="incident-details__content">
+        {/* Title and Badges */}
+        <div className="incident-details__header">
+          <h2 className="incident-details__title">{details.title}</h2>
+          <div className="incident-details__meta">
+            <span 
+              className="incident-details__category"
+              style={{ 
+                backgroundColor: `${categoryInfo.color}15`, 
+                borderColor: `${categoryInfo.color}40`,
+                color: categoryInfo.color 
+              }}
+            >
+              {categoryInfo.icon} {details.category}
+            </span>
+            <span className={`incident-details__severity incident-details__severity--${details.severity?.toLowerCase()}`}>
+              {getSeverityIcon(details.severity)} {details.severity}
+            </span>
+          </div>
+        </div>
+
+        {/* Description */}
+        <div className="incident-details__description">
+          {details.description}
+        </div>
+
+        {/* Details Grid */}
+        <div className="incident-details__grid">
+          <div className="incident-details__item">
+            <span className="incident-details__label">📍 Location</span>
+            <span className="incident-details__value">
+              {details.location.address || 'Location not specified'}
+            </span>
+          </div>
+          
+          <div className="incident-details__item">
+            <span className="incident-details__label">👤 Reported by</span>
+            <span className="incident-details__value">
+              {details.submittedBy?.username || 'Anonymous'}
+            </span>
+          </div>
+          
+          <div className="incident-details__item">
+            <span className="incident-details__label">� Date & Time</span>
+            <span className="incident-details__value">
+              {formatDate(details.timestamp)}
+            </span>
+          </div>
+
+          {details.location.coordinates && (
+            <div className="incident-details__item">
+              <span className="incident-details__label">🌐 Coordinates</span>
+              <span className="incident-details__value incident-details__value--mono">
+                {details.location.coordinates[1].toFixed(6)}, {details.location.coordinates[0].toFixed(6)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Community Engagement Stats */}
+        <div className="incident-details__stats">
+          <div className="incident-details__stat">
+            <span className="incident-details__stat-value">{votes.upvotes}</span>
+            <span className="incident-details__stat-label">👍 Upvotes</span>
+          </div>
+          <div className="incident-details__stat">
+            <span className="incident-details__stat-value">{votes.downvotes}</span>
+            <span className="incident-details__stat-label">👎 Downvotes</span>
+          </div>
         </div>
       </div>
-      {/* {currentUser && currentUser.role === 'admin' && (
-        <button className="btn btn--error" onClick={handleDelete}>
-          Delete Incident
-        </button>
-      )} */}
+
+      {/* Admin Actions */}
+      {currentUser && currentUser.role === 'admin' && (
+        <div className="incident-details__admin">
+          <button className="incident-details__admin-btn">
+            🗑️ Delete Incident
+          </button>
+        </div>
+      )}
     </div>
   );
 }

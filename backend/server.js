@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 const FRONTEND_URL = "https://realtime-neighbourhood-incident-tracker-6hfe.onrender.com";
 // CORS configuration
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', FRONTEND_URL, "https://real-time-neighbourhood-incident-tr.vercel.app"],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', FRONTEND_URL, "https://real-time-neighbourhood-incident-tr.vercel.app", "http://192.168.0.167:5173"],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -22,7 +22,7 @@ app.use(cors({
 // Socket.IO configuration
 const io = socketIo(server, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', FRONTEND_URL, "https://real-time-neighbourhood-incident-tr.vercel.app"],
+    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', FRONTEND_URL, "https://real-time-neighbourhood-incident-tr.vercel.app", "http://192.168.0.167:5173"],
     credentials: true,
     methods: ['GET', 'POST']
   },

@@ -4,7 +4,8 @@
 
 // Configuration - Automatically detect available API endpoint
 let API_BASE_URL = null;
-const LOCAL_API = 'http://localhost:3000/api';
+// const LOCAL_API = 'http://localhost:3000/api';
+const LOCAL_API = 'http://192.168.0.167:3000/api';
 const PRODUCTION_API = 'https://realtime-neighbourhood-incident-tracker.onrender.com/api';
 
 // Function to detect which API endpoint is available

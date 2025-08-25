@@ -13,6 +13,7 @@ function Home() {
 
   // Function to center map on incident without opening details modal
   const handleIncidentCenter = (incident) => {
+    console.log('Setting centered incident:', incident.title);
     setCenteredIncident(incident);
     setCenterTrigger(prev => prev + 1); // Force re-trigger even for same incident
   };
@@ -20,6 +21,13 @@ function Home() {
   // Function to open incident details modal
   const handleIncidentDetails = (incident) => {
     setSelectedIncident(incident);
+  };
+
+  // Function to handle when user requests their location
+  const handleUserLocationRequest = () => {
+    // Clear any centered incident when user requests their location
+    console.log('User requested location, clearing centered incident');
+    setCenteredIncident(null);
   };
 
   return (
@@ -32,19 +40,23 @@ function Home() {
       <MapView 
         selectedIncident={centeredIncident} 
         centerTrigger={centerTrigger}
-        onMarkerClick={handleIncidentDetails} 
+        onMarkerClick={handleIncidentDetails}
+        onUserLocationRequest={handleUserLocationRequest}
       />
       
       <Modal
         isOpen={!!selectedIncident}
         onClose={() => setSelectedIncident(null)}
         title="Incident Details"
+        size="default"
       >
         {selectedIncident && (
-          <IncidentDetailsModal
-            incident={selectedIncident}
-            onClose={() => setSelectedIncident(null)}
-          />
+          <div className="incident-details-modal-wrapper">
+            <IncidentDetailsModal
+              incident={selectedIncident}
+              onClose={() => setSelectedIncident(null)}
+            />
+          </div>
         )}
       </Modal>
     </div>

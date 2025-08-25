@@ -32,12 +32,30 @@ function ReportIncidentForm({ onClose, prefilledData = {} }) {
     setError('');
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          
+          // Try to get address from coordinates using reverse geocoding
+          let address = '';
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
+            );
+            const data = await response.json();
+            if (data && data.display_name) {
+              address = data.display_name;
+            }
+          } catch (error) {
+            console.log('Could not get address for coordinates:', error);
+            address = 'Current Location'; // Fallback to generic text
+          }
+          
           setFormData({
             ...formData,
-            lat: position.coords.latitude.toString(),
-            lng: position.coords.longitude.toString(),
-            address: formData.address || 'Current Location',
+            lat: lat.toString(),
+            lng: lng.toString(),
+            address: address || 'Current Location',
           });
           setIsLoadingLocation(false);
         },
@@ -254,7 +272,7 @@ function ReportIncidentForm({ onClose, prefilledData = {} }) {
               {isLoadingLocation ? (
                 <>
                   <span className="modern-btn__spinner"></span>
-                  Getting location...
+                  Getting location & address...
                 </>
               ) : (
                 <>
@@ -296,12 +314,12 @@ function ReportIncidentForm({ onClose, prefilledData = {} }) {
                     onChange={handleInputChange}
                     disabled={isSubmitting}
                   >
-                    <option value="">Select a category</option>
-                    <option value="Crime">🚔 Crime</option>
-                    <option value="Accident">🚗 Accident</option>
-                    <option value="Lost">🔍 Lost Item/Person</option>
-                    <option value="Utility">⚡ Utility Issue</option>
-                    <option value="Other">📝 Other</option>
+                    <option value="">— Select a category —</option>
+                    <option value="Crime">🚔 Crime & Security</option>
+                    <option value="Accident">🚗 Traffic & Accidents</option>
+                    <option value="Lost">🔍 Lost Item or Person</option>
+                    <option value="Utility">⚡ Utility & Infrastructure</option>
+                    <option value="Other">📝 Other Incidents</option>
                   </select>
                 </div>
               </div>
@@ -320,10 +338,10 @@ function ReportIncidentForm({ onClose, prefilledData = {} }) {
                     onChange={handleInputChange}
                     disabled={isSubmitting}
                   >
-                    <option value="">Select severity</option>
-                    <option value="Low">🟢 Low</option>
-                    <option value="Medium">🟡 Medium</option>
-                    <option value="High">🔴 High</option>
+                    <option value="">— Select severity level —</option>
+                    <option value="Low">🟢 Low Priority</option>
+                    <option value="Medium">🟡 Medium Priority</option>
+                    <option value="High">🔴 High Priority</option>
                   </select>
                 </div>
               </div>

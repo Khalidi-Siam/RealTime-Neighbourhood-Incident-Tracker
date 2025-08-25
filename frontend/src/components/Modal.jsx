@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-function Modal({ isOpen, onClose, children, title }) {
+function Modal({ isOpen, onClose, children, title, size = 'default' }) {
   const modalRef = useRef();
   const backdropRef = useRef();
 
@@ -28,13 +28,13 @@ function Modal({ isOpen, onClose, children, title }) {
   }
 
   return (
-    <div className="modal">
+    <div className={`modal ${isOpen ? 'modal--active' : ''}`} style={{ display: isOpen ? 'flex' : 'none' }}>
       <div 
         className="modal__backdrop" 
         ref={backdropRef}
         onClick={handleBackdropClick}
       ></div>
-      <div className="modal__content" ref={modalRef}>
+      <div className={`modal__content ${size === 'large' ? 'modal__content--large' : ''}`} ref={modalRef}>
         <div className="modal__header">
           <h3>{title}</h3>
           <button

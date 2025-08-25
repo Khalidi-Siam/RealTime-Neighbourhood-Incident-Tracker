@@ -126,7 +126,7 @@ function Nav({ currentView, onViewChange }) {
                 className="btn btn--outline btn--sm"
                 onClick={handleLoginClick}
               >
-                Login
+                Login / Register
               </button>
             )}
           </div>
