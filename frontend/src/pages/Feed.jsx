@@ -3,6 +3,7 @@ import { useSocket } from '../context/SocketContext.jsx';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { incidentsAPI } from '../utils/api.js';
 import IncidentCard from '../components/IncidentCard.jsx';
+import MiniMapModal from '../components/MiniMapModal.jsx';
 import useInfiniteScroll from '../hooks/useInfiniteScroll.jsx';
 import { toast } from 'react-toastify';
 
@@ -15,6 +16,8 @@ function Feed() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
+  const [showMiniMap, setShowMiniMap] = useState(false);
+  const [selectedIncidentForMap, setSelectedIncidentForMap] = useState(null);
   const [filters, setFilters] = useState({
     sortBy: 'timestamp',
     order: -1,
@@ -24,6 +27,27 @@ function Feed() {
 
   const categories = ['All', 'Crime', 'Accident', 'Lost', 'Utility', 'Other'];
   const severities = ['All', 'Low', 'Medium', 'High'];
+
+  // Handle "Locate on Map" button click
+  const handleIncidentLocate = (incident) => {
+    console.log('Feed: Locate on map clicked for incident:', incident);
+    console.log('Feed: Incident location:', incident.location);
+    setSelectedIncidentForMap(incident);
+    setShowMiniMap(true);
+  };
+
+  // Close mini map modal
+  const closeMiniMap = () => {
+    console.log('Feed: Closing mini map modal');
+    setShowMiniMap(false);
+    setSelectedIncidentForMap(null);
+  };
+
+  // Debug state changes
+  useEffect(() => {
+    console.log('Feed: showMiniMap state changed:', showMiniMap);
+    console.log('Feed: selectedIncidentForMap:', selectedIncidentForMap);
+  }, [showMiniMap, selectedIncidentForMap]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -307,7 +331,7 @@ function Feed() {
                 <IncidentCard
                   key={incident.id || incident._id}
                   incident={incident}
-                  onClick={() => console.log('Incident clicked:', incident.id || incident._id)}
+                  onSelect={() => handleIncidentLocate(incident)}
                   isSelected={false}
                   ref={isLast ? lastElementRef : null}
                 />
@@ -322,6 +346,13 @@ function Feed() {
           </>
         )}
       </div>
+
+      {/* Mini Map Modal */}
+      <MiniMapModal
+        isOpen={showMiniMap}
+        onClose={closeMiniMap}
+        incident={selectedIncidentForMap}
+      />
     </div>
   );
 }
