@@ -178,13 +178,13 @@ function AdminDashboard() {
 
   const getCategoryIcon = (category) => {
     const icons = {
-      'Safety': '🚨',
+      'Crime': '🚨',
+      'Accident': '🚗',
+      'Lost': '🔍',
+      'Utility': '⚡',
+      'Fire': '🔥',
       'Infrastructure': '🏗️',
-      'Environmental': '🌿',
-      'Traffic': '🚦',
-      'Community': '🏘️',
-      'Emergency': '🆘',
-      'Other': '📋'
+      'Other': '📝'
     };
     return icons[category] || icons['Other'];
   };

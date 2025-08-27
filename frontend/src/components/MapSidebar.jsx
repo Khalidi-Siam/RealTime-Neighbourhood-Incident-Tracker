@@ -14,7 +14,7 @@ import useInfiniteScroll from '../hooks/useInfiniteScroll.jsx';
  * - Smaller page size (5 vs 10) for better map integration
  * - Maintains chronological order for real-time updates
  */
-function MapSidebar({ onIncidentSelect, selectedIncident }) {
+function MapSidebar({ onIncidentSelect, onIncidentDetails, selectedIncident, selectedIncidentForDetails }) {
   const { currentUser } = useContext(AuthContext);
   const { socket, joinIncidentsRoom, leaveIncidentsRoom } = useSocket();
   const [incidents, setIncidents] = useState([]);
@@ -237,6 +237,8 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
             <option value="Accident">Accident</option>
             <option value="Lost">Lost</option>
             <option value="Utility">Utility</option>
+            <option value="Fire">Fire</option>
+            <option value="Infrastructure">Infrastructure</option>
             <option value="Other">Other</option>
           </select>
           <select 
@@ -264,7 +266,11 @@ function MapSidebar({ onIncidentSelect, selectedIncident }) {
                   key={incident._id}
                   incident={incident}
                   onSelect={() => onIncidentSelect(incident)}
-                  isSelected={selectedIncident && selectedIncident._id === incident._id}
+                  onCardClick={() => onIncidentDetails && onIncidentDetails(incident)}
+                  isSelected={
+                    (selectedIncident && selectedIncident._id === incident._id) || 
+                    (!selectedIncident && selectedIncidentForDetails && selectedIncidentForDetails._id === incident._id)
+                  }
                   ref={isLast ? lastElementRef : null}
                 />
               );

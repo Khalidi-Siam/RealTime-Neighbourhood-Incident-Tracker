@@ -1558,6 +1558,18 @@ select.form-control {
   transform: translateY(-2px);
 }
 
+/* Enhanced hover effect for clickable cards */
+.incident-card--clickable:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-3px);
+  border-color: var(--color-primary-400);
+}
+
+.incident-card--clickable:active {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
 .incident-card__header {
   display: flex;
   align-items: flex-start;
@@ -1754,8 +1766,23 @@ select.form-control {
 
 .incident-card__stat {
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* Changed from center to flex-start for better multi-line alignment */
   gap: var(--space-4);
+  flex: 1;
+  min-width: 0; /* Allow flex item to shrink below content size */
+}
+
+.incident-card__address {
+  /* Multi-line text truncation for address */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+  max-height: calc(1.4em * 2); /* 2 lines */
+  word-break: break-word;
+  hyphens: auto;
+  flex: 1;
 }
 
 .incident-card__time {

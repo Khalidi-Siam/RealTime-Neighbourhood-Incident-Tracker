@@ -14,12 +14,23 @@ L.Icon.Default.mergeOptions({
 });
 
 // Custom marker icons for different incident severities (matching MapView)
-const createCustomIcon = (severity, isSelected = false, isFalseReport = false) => {
+const createCustomIcon = (severity, category, isSelected = false, isFalseReport = false) => {
   const colors = {
     High: isSelected ? '#ff4757' : '#ff3742',
     Medium: isSelected ? '#ffa502' : '#ff9500', 
     Low: isSelected ? '#2ed573' : '#26de81',
     False: isSelected ? '#95a5a6' : '#7f8c8d'
+  };
+  
+  // Category to icon mapping
+  const categoryIcons = {
+    'Crime': '🚨',
+    'Accident': '💥',
+    'Lost': '🔍',
+    'Utility': '⚡',
+    'Fire': '🔥',
+    'Infrastructure': '🏗️',
+    'Other': '📝'
   };
   
   const size = isSelected ? [35, 35] : [25, 25];
@@ -31,7 +42,7 @@ const createCustomIcon = (severity, isSelected = false, isFalseReport = false) =
     icon = '❌';
   } else {
     color = colors[severity] || colors.Low;
-    icon = severity === 'High' ? '⚠️' : severity === 'Medium' ? '⚡' : '📍';
+    icon = categoryIcons[category] || categoryIcons['Other'];
   }
   
   return new L.DivIcon({
@@ -302,7 +313,7 @@ function MiniMapModal({ isOpen, onClose, incident }) {
                 />
                 <Marker 
                   position={position} 
-                  icon={createCustomIcon(incident.severity, true, isFalseReport)}
+                  icon={createCustomIcon(incident.severity, incident.category, true, isFalseReport)}
                 />
               </MapContainer>
             </div>

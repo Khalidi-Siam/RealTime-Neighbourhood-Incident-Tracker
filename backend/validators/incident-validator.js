@@ -22,9 +22,9 @@ const createIncidentSchema = z.object({
             message: "Longitude must be a valid number between -180 and 180"
         }).optional(),
     category: z
-        .enum(['Crime', 'Accident', 'Lost', 'Utility', 'Other'], {
+        .enum(['Crime', 'Accident', 'Lost', 'Utility', 'Fire', 'Infrastructure', 'Other'], {
             required_error: "Category is required",
-            invalid_type_error: "Category must be one of: Crime, Accident, Lost, Utility, Other"
+            invalid_type_error: "Category must be one of: Crime, Accident, Lost, Utility, Fire, Infrastructure, Other"
         }),
     severity: z
         .enum(['Low', 'Medium', 'High'], {

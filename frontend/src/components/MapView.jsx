@@ -17,12 +17,23 @@ import L from 'leaflet';
 delete L.Icon.Default.prototype._getIconUrl;
 
 // Custom marker icons for different incident severities
-const createCustomIcon = (severity, isSelected = false, isFalseReport = false) => {
+const createCustomIcon = (severity, category, isSelected = false, isFalseReport = false) => {
   const colors = {
     High: isSelected ? '#ff4757' : '#ff3742',
     Medium: isSelected ? '#ffa502' : '#ff9500', 
     Low: isSelected ? '#2ed573' : '#26de81',
     False: isSelected ? '#95a5a6' : '#7f8c8d' // Gray color for false reports
+  };
+  
+  // Category to icon mapping
+  const categoryIcons = {
+    'Crime': '🚨',
+    'Accident': '💥',
+    'Lost': '🔍',
+    'Utility': '⚡',
+    'Fire': '🔥',
+    'Infrastructure': '🏗️',
+    'Other': '📝'
   };
   
   const size = isSelected ? [35, 35] : [25, 25];
@@ -33,7 +44,7 @@ const createCustomIcon = (severity, isSelected = false, isFalseReport = false) =
     icon = '❌'; // X mark for false reports
   } else {
     color = colors[severity] || colors.Low;
-    icon = severity === 'High' ? '⚠️' : severity === 'Medium' ? '⚡' : '📍';
+    icon = categoryIcons[category] || categoryIcons['Other'];
   }
   
   return new L.DivIcon({
@@ -601,7 +612,7 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick, onUserLocatio
           {locationLoading ? (
             <span className="location-loading">🔄</span>
           ) : (
-            <span className="my-location-icon">🎯</span>
+            <span className="my-location-icon">📌</span>
           )}
         </button>
         <button 
@@ -687,6 +698,7 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick, onUserLocatio
               position={[incident.location.lat, incident.location.lng]}
               icon={createCustomIcon(
                 incident.severity,
+                incident.category,
                 selectedIncident && selectedIncident._id === incident._id,
                 incident.falseFlagVerified
               )}

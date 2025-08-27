@@ -14,20 +14,49 @@ import jsPDF from 'jspdf';
 // Category colors and icons mapping
 const categoryConfig = {
   'Crime': { color: '#e53e3e', icon: '🚨' },
-  'Accident': { color: '#d69e2e', icon: '🚦' },
+  'Accident': { color: '#d69e2e', icon: '💥' },
   'Lost': { color: '#38a169', icon: '🔍' },
   'Utility': { color: '#3182ce', icon: '⚡' },
-  'Other': { color: '#6b7280', icon: '📝' },
-  'Safety': { color: '#e53e3e', icon: '🚨' },
+  'Fire': { color: '#ff6b35', icon: '🔥' },
   'Infrastructure': { color: '#4a5568', icon: '🏗️' },
-  'Utilities': { color: '#3182ce', icon: '⚡' },
-  'Traffic': { color: '#d69e2e', icon: '🚦' },
-  'Animal': { color: '#38a169', icon: '🐕' },
-  'Environment': { color: '#00b894', icon: '🌱' },
-  'Noise': { color: '#a855f7', icon: '🔊' }
+  'Other': { color: '#6b7280', icon: '📝' }
 };
 
-const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
+// Utility function to calculate relative time
+const getRelativeTime = (timestamp) => {
+  const now = new Date();
+  const time = new Date(timestamp);
+  const diffInSeconds = Math.floor((now - time) / 1000);
+
+  if (diffInSeconds < 60) {
+    return 'Just now';
+  }
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} min${diffInMinutes > 1 ? 's' : ''} ago`;
+  }
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} hr${diffInHours > 1 ? 's' : ''} ago`;
+  }
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 30) {
+    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+  }
+  
+  const diffInMonths = Math.floor(diffInDays / 30);
+  if (diffInMonths < 12) {
+    return `${diffInMonths} month${diffInMonths > 1 ? 's' : ''} ago`;
+  }
+  
+  const diffInYears = Math.floor(diffInMonths / 12);
+  return `${diffInYears} year${diffInYears > 1 ? 's' : ''} ago`;
+};
+
+const IncidentCard = forwardRef(({ incident, onSelect, onCardClick, isSelected }, ref) => {
   const { currentUser, token } = useContext(AuthContext);
   const { hasReported, report, refreshStatus } = useReportStatus(incident._id);
   
@@ -39,10 +68,26 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
   const [showComments, setShowComments] = useState(false);
   const [error, setError] = useState('');
   const [showMenu, setShowMenu] = useState(false);
+  const [relativeTime, setRelativeTime] = useState(getRelativeTime(incident.timestamp));
   
   // Modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+
+  // Update relative time every minute
+  useEffect(() => {
+    const updateRelativeTime = () => {
+      setRelativeTime(getRelativeTime(incident.timestamp));
+    };
+    
+    // Update immediately
+    updateRelativeTime();
+    
+    // Set interval to update every minute
+    const interval = setInterval(updateRelativeTime, 60000);
+    
+    return () => clearInterval(interval);
+  }, [incident.timestamp]);
 
   // Update votes when incident prop changes (for real-time updates)
   useEffect(() => {
@@ -378,7 +423,12 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
   };
 
     return (
-    <div ref={ref} className={`incident-card ${isSelected ? 'incident-card--selected' : ''} ${incident.falseFlagVerified ? 'incident-card--false-report' : ''}`}>
+    <div 
+      ref={ref} 
+      className={`incident-card ${isSelected ? 'incident-card--selected' : ''} ${incident.falseFlagVerified ? 'incident-card--false-report' : ''} ${onCardClick ? 'incident-card--clickable' : ''}`}
+      onClick={onCardClick ? () => onCardClick() : undefined}
+      style={onCardClick ? { cursor: 'pointer' } : undefined}
+    >
       {/* False Report Banner */}
       {incident.falseFlagVerified && (
         <div className="incident-card__false-banner">
@@ -463,27 +513,26 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
       </h4>
       <div className={`incident-card__description ${incident.falseFlagVerified ? 'incident-card__description--false' : ''}`}>
         {incident.description}
-        {incident.falseFlagVerified && (
-          <div className="incident-card__false-disclaimer">
-            <em>This incident has been verified as a false report by administrators.</em>
-          </div>
-        )}
       </div>
       <div className="incident-card__stats">
         <div className="incident-card__stat">
           <span role="img" aria-label="Location">📍</span>
-          {incident.location.address || 'Location not specified'}
+          <span className="incident-card__address">
+            {incident.location.address || 'Location not specified'}
+          </span>
         </div>
         <div className="incident-card__time">
-          Reported by {incident.submittedBy?.username || 'Anonymous'} on{' '}
-          {new Date(incident.timestamp).toLocaleDateString()}
+          {relativeTime}
         </div>
       </div>
       <div className="incident-card__footer">
         <div className="incident-card__actions">
           <button
             className={`btn btn--icon-only ${votes.userVote === 'upvote' ? 'btn--active' : ''}`}
-            onClick={() => handleVote('upvote')}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleVote('upvote');
+            }}
             title={`Upvote (${votes.upvotes})`}
           >
             <span role="img" aria-label="Upvote">👍</span>
@@ -491,7 +540,10 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
           </button>
           <button
             className={`btn btn--icon-only ${votes.userVote === 'downvote' ? 'btn--active' : ''}`}
-            onClick={() => handleVote('downvote')}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleVote('downvote');
+            }}
             title={`Downvote (${votes.downvotes})`}
           >
             <span role="img" aria-label="Downvote">👎</span>
@@ -499,14 +551,20 @@ const IncidentCard = forwardRef(({ incident, onSelect, isSelected }, ref) => {
           </button>
           <button
             className="btn btn--icon-only"
-            onClick={() => setShowComments(!showComments)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowComments(!showComments);
+            }}
             title={showComments ? 'Hide comments' : 'Show comments'}
           >
             <span role="img" aria-label="Comments">💬</span>
           </button>
           <button 
             className="btn btn--icon-only" 
-            onClick={onSelect} 
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }} 
             title="Locate on map"
           >
             <span role="img" aria-label="Locate on map">📍</span>

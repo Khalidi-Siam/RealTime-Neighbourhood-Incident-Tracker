@@ -315,10 +315,12 @@ function ReportIncidentForm({ onClose, prefilledData = {} }) {
                     disabled={isSubmitting}
                   >
                     <option value="">— Select a category —</option>
-                    <option value="Crime">🚔 Crime & Security</option>
-                    <option value="Accident">🚗 Traffic & Accidents</option>
+                    <option value="Crime">🚨 Crime</option>
+                    <option value="Accident">💥 Accidents</option>
                     <option value="Lost">🔍 Lost Item or Person</option>
-                    <option value="Utility">⚡ Utility & Infrastructure</option>
+                    <option value="Utility">⚡ Utility Issues</option>
+                    <option value="Fire">🔥 Fire Emergency</option>
+                    <option value="Infrastructure">🏗️ Infrastructure Issues</option>
                     <option value="Other">📝 Other Incidents</option>
                   </select>
                 </div>

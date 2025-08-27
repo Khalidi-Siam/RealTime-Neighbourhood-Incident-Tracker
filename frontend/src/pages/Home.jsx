@@ -10,17 +10,23 @@ function Home() {
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [centeredIncident, setCenteredIncident] = useState(null);
   const [centerTrigger, setCenterTrigger] = useState(0); // Add trigger counter
+  const [selectedIncidentForDetails, setSelectedIncidentForDetails] = useState(null); // Track incident selected for details
 
   // Function to center map on incident without opening details modal
   const handleIncidentCenter = (incident) => {
     console.log('Setting centered incident:', incident.title);
     setCenteredIncident(incident);
     setCenterTrigger(prev => prev + 1); // Force re-trigger even for same incident
+    // Clear details selection when locating on map
+    setSelectedIncidentForDetails(null);
   };
 
   // Function to open incident details modal
   const handleIncidentDetails = (incident) => {
     setSelectedIncident(incident);
+    setSelectedIncidentForDetails(incident); // Track which incident was selected for details
+    // Clear map location selection when viewing details
+    setCenteredIncident(null);
   };
 
   // Function to handle when user requests their location
@@ -34,7 +40,9 @@ function Home() {
     <div className="map-container">
       <MapSidebar 
         onIncidentSelect={handleIncidentCenter} 
+        onIncidentDetails={handleIncidentDetails}
         selectedIncident={centeredIncident}
+        selectedIncidentForDetails={selectedIncidentForDetails}
       />
       
       <MapView 
@@ -46,7 +54,10 @@ function Home() {
       
       <Modal
         isOpen={!!selectedIncident}
-        onClose={() => setSelectedIncident(null)}
+        onClose={() => {
+          setSelectedIncident(null);
+          // Don't clear selectedIncidentForDetails here - keep the selection persistent
+        }}
         title="Incident Details"
         size="default"
       >
@@ -54,7 +65,10 @@ function Home() {
           <div className="incident-details-modal-wrapper">
             <IncidentDetailsModal
               incident={selectedIncident}
-              onClose={() => setSelectedIncident(null)}
+              onClose={() => {
+                setSelectedIncident(null);
+                // Don't clear selectedIncidentForDetails here - keep the selection persistent
+              }}
             />
           </div>
         )}

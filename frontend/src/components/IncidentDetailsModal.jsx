@@ -7,17 +7,12 @@ import { toast } from 'react-toastify';
 // Category colors and icons mapping - same as IncidentCard
 const categoryConfig = {
   'Crime': { color: '#e53e3e', icon: '🚨' },
-  'Accident': { color: '#d69e2e', icon: '🚦' },
+  'Accident': { color: '#d69e2e', icon: '🚧' },
   'Lost': { color: '#38a169', icon: '🔍' },
   'Utility': { color: '#3182ce', icon: '⚡' },
-  'Other': { color: '#6b7280', icon: '📝' },
-  'Safety': { color: '#e53e3e', icon: '🚨' },
+  'Fire': { color: '#ff6b35', icon: '🔥' },
   'Infrastructure': { color: '#4a5568', icon: '🏗️' },
-  'Utilities': { color: '#3182ce', icon: '⚡' },
-  'Traffic': { color: '#d69e2e', icon: '🚦' },
-  'Animal': { color: '#38a169', icon: '🐕' },
-  'Environment': { color: '#00b894', icon: '🌱' },
-  'Noise': { color: '#a855f7', icon: '🔊' }
+  'Other': { color: '#6b7280', icon: '📝' }
 };
 
 function IncidentDetailsModal({ incident, onClose }) {
@@ -27,12 +22,6 @@ function IncidentDetailsModal({ incident, onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [votes, setVotes] = useState({
-    upvotes: 0,
-    downvotes: 0,
-    userVote: null,
-  });
-
   useEffect(() => {
     const fetchDetails = async () => {
       setLoading(true);
@@ -40,11 +29,6 @@ function IncidentDetailsModal({ incident, onClose }) {
       try {
         const data = await incidentsAPI.getById(incident._id);
         setDetails({ ...data.incident, severity: incident.severity });
-        setVotes({
-          upvotes: data.incident.votes.upvotes || 0,
-          downvotes: data.incident.votes.downvotes || 0,
-          userVote: data.incident.votes.userVote || null,
-        });
       } catch (err) {
         setError(err.message);
       } finally {
@@ -62,34 +46,6 @@ function IncidentDetailsModal({ incident, onClose }) {
     // Join the specific incident room
     joinIncidentRoom(incident._id);
 
-    // Listen for vote updates on this incident
-    const handleVoteUpdate = (data) => {
-      if (data.incidentId === incident._id) {
-        console.log('Vote updated for this incident:', data);
-        
-        // Preserve the current user's vote status, only update counts
-        setVotes(prevVotes => {
-          const updatedVotes = {
-            upvotes: data.votes.upvotes,
-            downvotes: data.votes.downvotes,
-            total: data.votes.total,
-            userVote: prevVotes.userVote // Keep existing userVote from current state
-          };
-          
-          // If this vote update is from the current user, update their userVote
-          if (currentUser && data.voterId === currentUser.id) {
-            if (data.action === 'removed') {
-              updatedVotes.userVote = null;
-            } else {
-              updatedVotes.userVote = data.voteType;
-            }
-          }
-          
-          return updatedVotes;
-        });
-      }
-    };
-
     // Listen for incident deletion
     const handleIncidentDeleted = (data) => {
       if (data.incidentId === incident._id) {
@@ -103,77 +59,14 @@ function IncidentDetailsModal({ incident, onClose }) {
     };
 
     // Register event listeners
-    socket.on('vote-updated', handleVoteUpdate);
     socket.on('incident-deleted', handleIncidentDeleted);
 
     // Cleanup
     return () => {
-      socket.off('vote-updated', handleVoteUpdate);
       socket.off('incident-deleted', handleIncidentDeleted);
       leaveIncidentRoom(incident._id);
     };
   }, [socket, incident?._id, joinIncidentRoom, leaveIncidentRoom, onClose]);
-
-  const handleVote = async (voteType) => {
-    if (!currentUser || !token) {
-      toast.warn('Please log in to vote', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
-      return;
-    }
-    
-    // Store the previous vote state to determine if vote was added or removed
-    const previousVote = votes.userVote;
-    const isRemovingVote = previousVote === voteType;
-    
-    try {
-      const data = await incidentsAPI.vote(incident._id, voteType);
-      
-      // Update votes state with the response data
-      setVotes({
-        upvotes: data.votes.upvotes,
-        downvotes: data.votes.downvotes,
-        userVote: data.votes.userVote,
-      });
-      setError('');
-      
-      // Show appropriate success toast based on vote action
-      let message;
-      if (isRemovingVote) {
-        message = 'Vote removed successfully!';
-      } else {
-        message = `${voteType === 'upvote' ? 'Upvoted' : 'Downvoted'} successfully!`;
-      }
-      
-      toast.success(message, {
-        position: "top-right",
-        autoClose: 2000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
-    } catch (err) {
-      console.error('Vote error:', err);
-      const errorMessage = err.message || 'Failed to record vote';
-      setError('');
-      
-      // Show error toast
-      toast.error(errorMessage, {
-        position: "top-right",
-        autoClose: 4000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
-    }
-  };
 
   // const handleDelete = async () => {
   //   if (!currentUser || currentUser.role !== 'admin') {
@@ -307,28 +200,7 @@ function IncidentDetailsModal({ incident, onClose }) {
             </div>
           )}
         </div>
-
-        {/* Community Engagement Stats */}
-        <div className="incident-details__stats">
-          <div className="incident-details__stat">
-            <span className="incident-details__stat-value">{votes.upvotes}</span>
-            <span className="incident-details__stat-label">👍 Upvotes</span>
-          </div>
-          <div className="incident-details__stat">
-            <span className="incident-details__stat-value">{votes.downvotes}</span>
-            <span className="incident-details__stat-label">👎 Downvotes</span>
-          </div>
-        </div>
       </div>
-
-      {/* Admin Actions */}
-      {currentUser && currentUser.role === 'admin' && (
-        <div className="incident-details__admin">
-          <button className="incident-details__admin-btn">
-            🗑️ Delete Incident
-          </button>
-        </div>
-      )}
     </div>
   );
 }
