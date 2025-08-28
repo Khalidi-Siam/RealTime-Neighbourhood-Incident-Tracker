@@ -573,7 +573,7 @@ const IncidentCard = forwardRef(({ incident, onSelect, onCardClick, isSelected }
       </div>
       {error && <div className="alert alert--error">{error}</div>}
       {showComments && (
-        <div className="incident-card__comments-section">
+        <div className="incident-card__comments-section" onClick={(e) => e.stopPropagation()}>
           <CommentList incidentId={incident._id} />
           <CommentForm incidentId={incident._id} />
         </div>
