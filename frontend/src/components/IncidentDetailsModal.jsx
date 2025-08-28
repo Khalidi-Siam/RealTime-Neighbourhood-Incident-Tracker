@@ -7,7 +7,7 @@ import { toast } from 'react-toastify';
 // Category colors and icons mapping - same as IncidentCard
 const categoryConfig = {
   'Crime': { color: '#e53e3e', icon: '🚨' },
-  'Accident': { color: '#d69e2e', icon: '🚧' },
+  'Accident': { color: '#d69e2e', icon: '💥' },
   'Lost': { color: '#38a169', icon: '🔍' },
   'Utility': { color: '#3182ce', icon: '⚡' },
   'Fire': { color: '#ff6b35', icon: '🔥' },

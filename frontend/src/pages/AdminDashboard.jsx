@@ -3,6 +3,7 @@ import { AuthContext } from '../context/AuthContext.jsx';
 import { authAPI, incidentsAPI } from '../utils/api.js';
 import { toast } from 'react-toastify';
 import ConfirmModal from '../components/ConfirmModal.jsx';
+import { getRelativeTime } from '../utils/timeUtils.js';
 
 function AdminDashboard() {
   const { currentUser } = useContext(AuthContext);
@@ -329,7 +330,7 @@ function AdminDashboard() {
                                   👤 {report.reportedBy.username}
                                 </span>
                                 <span className="report-date">
-                                  📅 {formatDate(report.timestamp)}
+                                  📅 {getRelativeTime(report.timestamp)}
                                 </span>
                               </div>
                               <div className="report-reason">

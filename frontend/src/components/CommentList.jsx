@@ -1,15 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useContext } from 'react';
+import { createPortal } from 'react-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { commentsAPI } from '../utils/api.js';
 import { useSocket } from '../context/SocketContext.jsx';
 import { toast } from 'react-toastify';
+import { getRelativeTime } from '../utils/timeUtils.js';
+import ConfirmModal from './ConfirmModal.jsx';
 
 function CommentList({ incidentId }) {
-  const { token } = useContext(AuthContext);
+  const { token, currentUser } = useContext(AuthContext);
   const { socket, joinIncidentRoom, leaveIncidentRoom } = useSocket();
   const [comments, setComments] = useState([]);
   const [error, setError] = useState('');
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState(null);
 
   useEffect(() => {
     console.log(`Fetching comments for incident ${incidentId}`);
@@ -89,6 +95,66 @@ function CommentList({ incidentId }) {
     };
   }, [socket, incidentId, joinIncidentRoom, leaveIncidentRoom]);
 
+  // Handle click outside to close menu
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.comment__menu-container')) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  // Check if user can delete a comment (owner or admin)
+  const canDeleteComment = (comment) => {
+    if (!currentUser) return false;
+    return currentUser.id === comment.user._id || currentUser.role === 'admin';
+  };
+
+  // Handle comment deletion
+  const handleDeleteComment = async (commentId) => {
+    setCommentToDelete(commentId);
+    setShowConfirmModal(true);
+    setOpenMenuId(null); // Close the menu
+  };
+
+  // Confirm and execute deletion
+  const confirmDeleteComment = async () => {
+    if (!commentToDelete) return;
+
+    try {
+      await commentsAPI.delete(commentToDelete);
+      
+      // Remove comment from local state
+      setComments(prevComments => prevComments.filter(comment => comment._id !== commentToDelete));
+      
+      toast.success('Comment deleted successfully!', {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      
+      setShowConfirmModal(false);
+      setCommentToDelete(null);
+    } catch (err) {
+      const errorMessage = err.message || 'Failed to delete comment';
+      toast.error(errorMessage, {
+        position: "top-right",
+        autoClose: 4000,
+      });
+      
+      setShowConfirmModal(false);
+      setCommentToDelete(null);
+    }
+  };
+
+  // Cancel deletion
+  const cancelDeleteComment = () => {
+    setShowConfirmModal(false);
+    setCommentToDelete(null);
+  };
+
   return (
     <div className="comment-list">
       {error && <div className="alert alert--error">{error}</div>}
@@ -99,13 +165,58 @@ function CommentList({ incidentId }) {
           <div key={comment.id} className="comment">
             <div className="comment__header">
               <span className="comment__author">{comment.user.username}</span>
-              <span className="comment__date">
-                {new Date(comment.createdAt).toLocaleDateString()}
-              </span>
+              <div className="comment__meta">
+                <span className="comment__date">
+                  {getRelativeTime(comment.createdAt)}
+                </span>
+                {canDeleteComment(comment) && (
+                  <div className="comment__menu-container">
+                    <button
+                      className="comment__menu-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuId(openMenuId === comment._id ? null : comment._id);
+                      }}
+                      title="Comment options"
+                      aria-label="Comment options"
+                    >
+                      ⋮
+                    </button>
+                    {openMenuId === comment._id && (
+                      <div className="comment__menu-dropdown">
+                        <button
+                          className="comment__menu-item comment__menu-item--delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteComment(comment._id);
+                          }}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <p className="comment__content">{comment.text}</p>
           </div>
         ))
+      )}
+      
+      {/* Confirmation Modal for Comment Deletion - Rendered at document body level */}
+      {showConfirmModal && createPortal(
+        <ConfirmModal
+          isOpen={showConfirmModal}
+          onClose={cancelDeleteComment}
+          onConfirm={confirmDeleteComment}
+          title="Delete Comment"
+          message="Are you sure you want to delete this comment? This action cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
+          type="danger"
+        />,
+        document.body
       )}
     </div>
   );

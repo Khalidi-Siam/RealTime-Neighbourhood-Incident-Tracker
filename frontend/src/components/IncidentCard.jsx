@@ -10,6 +10,7 @@ import useReportStatus from '../hooks/useReportStatus.jsx';
 import { handleReportAction, canDeleteIncident } from '../utils/incidentActions.js';
 import { toast } from 'react-toastify';
 import jsPDF from 'jspdf';
+import { getRelativeTime } from '../utils/timeUtils.js';
 
 // Category colors and icons mapping
 const categoryConfig = {
@@ -20,40 +21,6 @@ const categoryConfig = {
   'Fire': { color: '#ff6b35', icon: '🔥' },
   'Infrastructure': { color: '#4a5568', icon: '🏗️' },
   'Other': { color: '#6b7280', icon: '📝' }
-};
-
-// Utility function to calculate relative time
-const getRelativeTime = (timestamp) => {
-  const now = new Date();
-  const time = new Date(timestamp);
-  const diffInSeconds = Math.floor((now - time) / 1000);
-
-  if (diffInSeconds < 60) {
-    return 'Just now';
-  }
-  
-  const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) {
-    return `${diffInMinutes} min${diffInMinutes > 1 ? 's' : ''} ago`;
-  }
-  
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) {
-    return `${diffInHours} hr${diffInHours > 1 ? 's' : ''} ago`;
-  }
-  
-  const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays < 30) {
-    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
-  }
-  
-  const diffInMonths = Math.floor(diffInDays / 30);
-  if (diffInMonths < 12) {
-    return `${diffInMonths} month${diffInMonths > 1 ? 's' : ''} ago`;
-  }
-  
-  const diffInYears = Math.floor(diffInMonths / 12);
-  return `${diffInYears} year${diffInYears > 1 ? 's' : ''} ago`;
 };
 
 const IncidentCard = forwardRef(({ incident, onSelect, onCardClick, isSelected }, ref) => {
@@ -463,6 +430,9 @@ const IncidentCard = forwardRef(({ incident, onSelect, onCardClick, isSelected }
         </div>
         {/* Three-dot menu */}
         <div className="incident-card__menu">
+          <div className="incident-card__time incident-card__time--header">
+            {relativeTime}
+          </div>
           <button 
             className="incident-card__menu-trigger"
             onClick={(e) => {
@@ -520,9 +490,6 @@ const IncidentCard = forwardRef(({ incident, onSelect, onCardClick, isSelected }
           <span className="incident-card__address">
             {incident.location.address || 'Location not specified'}
           </span>
-        </div>
-        <div className="incident-card__time">
-          {relativeTime}
         </div>
       </div>
       <div className="incident-card__footer">

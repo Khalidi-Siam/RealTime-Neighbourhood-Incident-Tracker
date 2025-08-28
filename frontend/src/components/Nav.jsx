@@ -90,6 +90,16 @@ function Nav({ currentView, onViewChange }) {
             >
               <span>{isDarkMode ? '☀️' : '🌙'}</span>
             </button>
+            {currentUser && (
+              <button
+                className="btn btn--secondary btn--sm"
+                disabled
+                title="Notifications (Coming Soon)"
+                aria-label="Notifications"
+              >
+                <span>🔔</span>
+              </button>
+            )}
             {currentUser ? (
               <>
                 <button

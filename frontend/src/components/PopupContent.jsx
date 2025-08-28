@@ -2,6 +2,7 @@ import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import useReportCheck from '../hooks/useReportCheck.jsx';
 import { handleReportAction, canDeleteIncident } from '../utils/incidentActions.js';
+import { getRelativeTime } from '../utils/timeUtils.js';
 
 function PopupContent({ 
   incident, 
@@ -93,7 +94,7 @@ function PopupContent({
           👍 {incident.votes.upvotes} | 👎 {incident.votes.downvotes}
         </p>
         <p className="date">
-          📅 {new Date(incident.timestamp).toLocaleDateString()} at {new Date(incident.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          📅 {getRelativeTime(incident.timestamp)}
         </p>
       </div>
       <button
