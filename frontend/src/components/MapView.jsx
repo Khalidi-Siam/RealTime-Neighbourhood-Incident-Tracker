@@ -150,11 +150,6 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick, onUserLocatio
       setIncidents(prevIncidents => 
         prevIncidents.filter(incident => incident._id !== data.incidentId)
       );
-      
-      toast.info(data.message || 'An incident has been removed', {
-        position: "top-right",
-        autoClose: 3000,
-      });
     };
 
     // Listen for vote updates
@@ -202,11 +197,6 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick, onUserLocatio
           return incident;
         })
       );
-      
-      toast.info(data.message || 'An incident has been marked as false', {
-        position: "top-right",
-        autoClose: 3000,
-      });
     };
 
     // Listen for false report rejected (admin restores incident)
@@ -224,11 +214,6 @@ function MapView({ selectedIncident, centerTrigger, onMarkerClick, onUserLocatio
           return incident;
         })
       );
-      
-      toast.success(data.message || 'An incident has been restored', {
-        position: "top-right",
-        autoClose: 3000,
-      });
     };
 
     // Register event listeners

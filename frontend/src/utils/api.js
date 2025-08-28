@@ -365,6 +365,17 @@ export const commentsAPI = {
     });
     return handleResponse(response);
   },
+
+  // Create reply to a comment
+  createReply: async (commentId, content) => {
+    const baseUrl = await getApiBaseUrl();
+    const response = await fetch(`${baseUrl}/comment/${commentId}/reply`, {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+      body: JSON.stringify({ text: content }),
+    });
+    return handleResponse(response);
+  },
 };
 
 // ===== UTILITY FUNCTIONS =====

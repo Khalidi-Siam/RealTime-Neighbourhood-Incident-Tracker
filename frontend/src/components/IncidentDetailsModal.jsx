@@ -50,10 +50,6 @@ function IncidentDetailsModal({ incident, onClose }) {
     const handleIncidentDeleted = (data) => {
       if (data.incidentId === incident._id) {
         console.log('This incident was deleted:', data);
-        toast.error(data.message || 'This incident has been deleted', {
-          position: "top-right",
-          autoClose: 3000,
-        });
         onClose(); // Close the modal since the incident no longer exists
       }
     };

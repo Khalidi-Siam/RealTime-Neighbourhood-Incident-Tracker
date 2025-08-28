@@ -7,6 +7,7 @@ import { useSocket } from '../context/SocketContext.jsx';
 import { toast } from 'react-toastify';
 import { getRelativeTime } from '../utils/timeUtils.js';
 import ConfirmModal from './ConfirmModal.jsx';
+import ReplyForm from './ReplyForm.jsx';
 
 function CommentList({ incidentId }) {
   const { token, currentUser } = useContext(AuthContext);
@@ -16,6 +17,7 @@ function CommentList({ incidentId }) {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState(null);
+  const [replyingToId, setReplyingToId] = useState(null);
 
   useEffect(() => {
     console.log(`Fetching comments for incident ${incidentId}`);
@@ -46,10 +48,33 @@ function CommentList({ incidentId }) {
       if (data.incidentId === incidentId) {
         console.log('New comment received:', data);
         setComments(prevComments => [data.comment, ...prevComments]);
+      }
+    };
+
+    // Listen for new replies
+    const handleNewReply = (data) => {
+      if (data.incidentId === incidentId) {
+        console.log('New reply received:', data);
         
-        toast.success(data.message || 'New comment added!', {
-          position: "top-right",
-          autoClose: 3000,
+        // Update the comment's replies array
+        setComments(prevComments => {
+          const updateCommentsRecursively = (comments) => {
+            return comments.map(comment => {
+              if (comment._id === data.parentCommentId) {
+                return {
+                  ...comment,
+                  replies: [...(comment.replies || []), data.reply]
+                };
+              } else if (comment.replies && comment.replies.length > 0) {
+                return {
+                  ...comment,
+                  replies: updateCommentsRecursively(comment.replies)
+                };
+              }
+              return comment;
+            });
+          };
+          return updateCommentsRecursively(prevComments);
         });
       }
     };
@@ -73,22 +98,19 @@ function CommentList({ incidentId }) {
         setComments(prevComments => 
           prevComments.filter(comment => comment._id !== data.commentId)
         );
-        
-        toast.info(data.message || 'Comment has been deleted', {
-          position: "top-right",
-          autoClose: 3000,
-        });
       }
     };
 
     // Register event listeners
     socket.on('new-comment', handleNewComment);
+    socket.on('new-reply', handleNewReply);
     socket.on('comment-updated', handleCommentUpdate);
     socket.on('comment-deleted', handleCommentDeleted);
 
     // Cleanup
     return () => {
       socket.off('new-comment', handleNewComment);
+      socket.off('new-reply', handleNewReply);
       socket.off('comment-updated', handleCommentUpdate);
       socket.off('comment-deleted', handleCommentDeleted);
       leaveIncidentRoom(incidentId);
@@ -155,53 +177,103 @@ function CommentList({ incidentId }) {
     setCommentToDelete(null);
   };
 
+  // Handle starting a reply
+  const handleStartReply = (commentId) => {
+    setReplyingToId(commentId);
+    setOpenMenuId(null); // Close any open menu
+  };
+
+  // Handle canceling a reply
+  const handleCancelReply = () => {
+    setReplyingToId(null);
+  };
+
+  // Handle reply submission (for real-time updates)
+  const handleReplySubmitted = (reply) => {
+    // Reply will be added via socket event, so we just need to close the form
+    setReplyingToId(null);
+  };
+
+  // Recursive component to render comments and their replies
+  const renderComment = (comment, depth = 0) => (
+    <div key={comment._id || comment.id} className={`comment comment--depth-${Math.min(depth, 5)}`}>
+      <div className="comment__header">
+        <span className="comment__author">{comment.user.username}</span>
+        <div className="comment__meta">
+          <span className="comment__date">
+            {getRelativeTime(comment.createdAt)}
+          </span>
+          {canDeleteComment(comment) && (
+            <div className="comment__menu-container">
+              <button
+                className="comment__menu-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenMenuId(openMenuId === comment._id ? null : comment._id);
+                }}
+                title="Comment options"
+                aria-label="Comment options"
+              >
+                ⋮
+              </button>
+              {openMenuId === comment._id && (
+                <div className="comment__menu-dropdown">
+                  <button
+                    className="comment__menu-item comment__menu-item--delete"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteComment(comment._id);
+                    }}
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      <p className="comment__content">{comment.text}</p>
+      
+      {/* Reply button */}
+      {currentUser && depth < 5 && (
+        <div className="comment__actions">
+          <button 
+            className="comment__reply-btn"
+            onClick={() => handleStartReply(comment._id)}
+          >
+            💬 Reply
+          </button>
+        </div>
+      )}
+      
+      {/* Reply form */}
+      {replyingToId === comment._id && (
+        <div className="comment__reply-form">
+          <ReplyForm 
+            commentId={comment._id}
+            onReplySubmitted={handleReplySubmitted}
+            onCancel={handleCancelReply}
+          />
+        </div>
+      )}
+      
+      {/* Nested replies */}
+      {comment.replies && comment.replies.length > 0 && (
+        <div className="comment__replies">
+          {comment.replies.map(reply => renderComment(reply, depth + 1))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="comment-list">
       {error && <div className="alert alert--error">{error}</div>}
       {comments.length === 0 ? (
         <p className="comment-list__empty">No comments yet</p>
       ) : (
-        comments.map((comment) => (
-          <div key={comment.id} className="comment">
-            <div className="comment__header">
-              <span className="comment__author">{comment.user.username}</span>
-              <div className="comment__meta">
-                <span className="comment__date">
-                  {getRelativeTime(comment.createdAt)}
-                </span>
-                {canDeleteComment(comment) && (
-                  <div className="comment__menu-container">
-                    <button
-                      className="comment__menu-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenMenuId(openMenuId === comment._id ? null : comment._id);
-                      }}
-                      title="Comment options"
-                      aria-label="Comment options"
-                    >
-                      ⋮
-                    </button>
-                    {openMenuId === comment._id && (
-                      <div className="comment__menu-dropdown">
-                        <button
-                          className="comment__menu-item comment__menu-item--delete"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteComment(comment._id);
-                          }}
-                        >
-                          🗑️ Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            <p className="comment__content">{comment.text}</p>
-          </div>
-        ))
+        comments.map((comment) => renderComment(comment, 0))
       )}
       
       {/* Confirmation Modal for Comment Deletion - Rendered at document body level */}
@@ -211,7 +283,7 @@ function CommentList({ incidentId }) {
           onClose={cancelDeleteComment}
           onConfirm={confirmDeleteComment}
           title="Delete Comment"
-          message="Are you sure you want to delete this comment? This action cannot be undone."
+          message="Are you sure you want to delete this comment? This action cannot be undone and will also delete all replies."
           confirmText="Delete"
           cancelText="Cancel"
           type="danger"
