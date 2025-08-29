@@ -12,7 +12,17 @@ const generalLimiter = rateLimit({
   // Skip rate limiting for certain conditions
   skip: (req, res) => {
     // Skip rate limiting for health check endpoint
-    return req.path === '/' || req.path === '/health';
+    if (req.path === '/' || req.path === '/health') return true;
+    
+    // Skip endpoints that have their own specific rate limiting
+    const skipPaths = [
+      '/vote',           // Voting endpoints
+      '/report-false',   // False report endpoints
+      '/comments'        // Comment creation endpoints
+    ];
+    
+    // Check if the request path contains any of the skip patterns
+    return skipPaths.some(path => req.path.includes(path));
   },
 });
 
@@ -40,6 +50,15 @@ const createContentLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Use a custom key generator to combine IP and user ID for better isolation
+  keyGenerator: (req) => {
+    // If user is authenticated, use IP + user ID for more precise limiting
+    if (req.user && req.user.id) {
+      return `${req.ip}_user_${req.user.id}`;
+    }
+    // Fallback to IP only for unauthenticated requests
+    return req.ip;
+  },
 });
 
 // Strict rate limiter for voting and reporting actions
@@ -51,6 +70,15 @@ const actionLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Use a custom key generator to combine IP and user ID for better isolation
+  keyGenerator: (req) => {
+    // If user is authenticated, use IP + user ID for more precise limiting
+    if (req.user && req.user.id) {
+      return `${req.ip}_user_${req.user.id}`;
+    }
+    // Fallback to IP only for unauthenticated requests
+    return req.ip;
+  },
 });
 
 // Very strict rate limiter for false report submissions
@@ -62,6 +90,15 @@ const falseReportLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Use a custom key generator to combine IP and user ID for better isolation
+  keyGenerator: (req) => {
+    // If user is authenticated, use IP + user ID for more precise limiting
+    if (req.user && req.user.id) {
+      return `${req.ip}_user_${req.user.id}`;
+    }
+    // Fallback to IP only for unauthenticated requests
+    return req.ip;
+  },
 });
 
 // Rate limiter for password reset attempts
