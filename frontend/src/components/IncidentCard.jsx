@@ -1,9 +1,10 @@
 import { useState, useContext, forwardRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
-import { incidentsAPI } from '../utils/api.js';
+import { incidentsAPI, commentsAPI } from '../utils/api.js';
 import CommentList from './CommentList.jsx';
 import CommentForm from './CommentForm.jsx';
+import IncidentModal from './IncidentModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
 import ReportModal from './ReportModal.jsx';
 import useReportStatus from '../hooks/useReportStatus.jsx';
@@ -33,6 +34,9 @@ const IncidentCard = forwardRef(({ incident, onSelect, onCardClick, isSelected }
     userVote: incident.votes.userVote || null,
   });
   const [showComments, setShowComments] = useState(false);
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
+  const [modalInitialFocus, setModalInitialFocus] = useState('details');
+  const [commentCount, setCommentCount] = useState(0);
   const [error, setError] = useState('');
   const [showMenu, setShowMenu] = useState(false);
   const [relativeTime, setRelativeTime] = useState(getRelativeTime(incident.timestamp));
@@ -64,6 +68,31 @@ const IncidentCard = forwardRef(({ incident, onSelect, onCardClick, isSelected }
       userVote: incident.votes.userVote || null,
     });
   }, [incident.votes]);
+
+  // Fetch comment count
+  useEffect(() => {
+    const fetchCommentCount = async () => {
+      try {
+        const { comments } = await commentsAPI.getByIncident(incident._id);
+        // Count total comments including nested replies
+        const countAllComments = (comments) => {
+          return comments.reduce((total, comment) => {
+            let count = 1; // Count the comment itself
+            if (comment.replies && comment.replies.length > 0) {
+              count += countAllComments(comment.replies); // Recursively count replies
+            }
+            return total + count;
+          }, 0);
+        };
+        setCommentCount(countAllComments(comments));
+      } catch (err) {
+        console.error('Failed to fetch comment count:', err);
+        setCommentCount(0);
+      }
+    };
+
+    fetchCommentCount();
+  }, [incident._id]);
 
   // Get category configuration
   const getCategoryConfig = (category) => {
@@ -392,9 +421,15 @@ const IncidentCard = forwardRef(({ incident, onSelect, onCardClick, isSelected }
     return (
     <div 
       ref={ref} 
-      className={`incident-card ${isSelected ? 'incident-card--selected' : ''} ${incident.falseFlagVerified ? 'incident-card--false-report' : ''} ${onCardClick ? 'incident-card--clickable' : ''}`}
-      onClick={onCardClick ? () => onCardClick() : undefined}
-      style={onCardClick ? { cursor: 'pointer' } : undefined}
+      className={`incident-card ${isSelected ? 'incident-card--selected' : ''} ${incident.falseFlagVerified ? 'incident-card--false-report' : ''} incident-card--clickable`}
+      onClick={(e) => {
+        // Only open details modal if clicking on the card itself, not buttons or interactive elements
+        if (!e.target.closest('.btn, .incident-card__menu-trigger, .incident-card__menu-dropdown')) {
+          setModalInitialFocus('details');
+          setShowIncidentModal(true);
+        }
+      }}
+      style={{ cursor: 'pointer' }}
     >
       {/* False Report Banner */}
       {incident.falseFlagVerified && (
@@ -520,11 +555,13 @@ const IncidentCard = forwardRef(({ incident, onSelect, onCardClick, isSelected }
             className="btn btn--icon-only"
             onClick={(e) => {
               e.stopPropagation();
-              setShowComments(!showComments);
+              setModalInitialFocus('comments');
+              setShowIncidentModal(true);
             }}
-            title={showComments ? 'Hide comments' : 'Show comments'}
+            title={`Comments (${commentCount})`}
           >
             <span role="img" aria-label="Comments">💬</span>
+            {commentCount > 0 && <span className="comment-count">{commentCount}</span>}
           </button>
           <button 
             className="btn btn--icon-only" 
@@ -539,11 +576,15 @@ const IncidentCard = forwardRef(({ incident, onSelect, onCardClick, isSelected }
         </div>
       </div>
       {error && <div className="alert alert--error">{error}</div>}
-      {showComments && (
-        <div className="incident-card__comments-section" onClick={(e) => e.stopPropagation()}>
-          <CommentList incidentId={incident._id} />
-          <CommentForm incidentId={incident._id} />
-        </div>
+      
+      {/* Unified Incident Modal */}
+      {showIncidentModal && (
+        <IncidentModal 
+          incident={incident}
+          isOpen={showIncidentModal}
+          onClose={() => setShowIncidentModal(false)}
+          initialFocus={modalInitialFocus}
+        />
       )}
       
       {/* Render confirmation modal using portal to ensure proper positioning */}

@@ -4,7 +4,6 @@ import { AuthContext } from '../context/AuthContext.jsx';
 import { incidentsAPI } from '../utils/api.js';
 import IncidentCard from '../components/IncidentCard.jsx';
 import MiniMapModal from '../components/MiniMapModal.jsx';
-import IncidentDetailsModal from '../components/IncidentDetailsModal.jsx';
 import Modal from '../components/Modal.jsx';
 import useInfiniteScroll from '../hooks/useInfiniteScroll.jsx';
 import { toast } from 'react-toastify';
@@ -20,8 +19,6 @@ function Feed() {
   const [hasNextPage, setHasNextPage] = useState(false);
   const [showMiniMap, setShowMiniMap] = useState(false);
   const [selectedIncidentForMap, setSelectedIncidentForMap] = useState(null);
-  const [showIncidentDetails, setShowIncidentDetails] = useState(false);
-  const [selectedIncidentForDetails, setSelectedIncidentForDetails] = useState(null);
   const [filters, setFilters] = useState({
     sortBy: 'timestamp',
     order: -1,
@@ -38,40 +35,19 @@ function Feed() {
     console.log('Feed: Incident location:', incident.location);
     setSelectedIncidentForMap(incident);
     setShowMiniMap(true);
-    // Clear details selection when locating on map
-    setSelectedIncidentForDetails(null);
-  };
-
-  // Handle incident card click for details
-  const handleIncidentDetails = (incident) => {
-    console.log('Feed: Incident details clicked for incident:', incident);
-    setSelectedIncidentForDetails(incident); // Set this incident as selected for details
-    setShowIncidentDetails(true);
-    // Clear map location selection when viewing details
-    setSelectedIncidentForMap(null);
   };
 
   // Close mini map modal
   const closeMiniMap = () => {
     console.log('Feed: Closing mini map modal');
     setShowMiniMap(false);
-    // Don't clear selectedIncidentForMap here - keep the map selection persistent until user takes another action
-  };
-
-  // Close incident details modal
-  const closeIncidentDetails = () => {
-    console.log('Feed: Closing incident details modal');
-    setShowIncidentDetails(false);
-    // Don't clear selectedIncidentForDetails here - keep the selection persistent
   };
 
   // Debug state changes
   useEffect(() => {
     console.log('Feed: showMiniMap state changed:', showMiniMap);
     console.log('Feed: selectedIncidentForMap:', selectedIncidentForMap);
-    console.log('Feed: showIncidentDetails state changed:', showIncidentDetails);
-    console.log('Feed: selectedIncidentForDetails:', selectedIncidentForDetails);
-  }, [showMiniMap, selectedIncidentForMap, showIncidentDetails, selectedIncidentForDetails]);
+  }, [showMiniMap, selectedIncidentForMap]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -341,11 +317,7 @@ function Feed() {
                   key={incident.id || incident._id}
                   incident={incident}
                   onSelect={() => handleIncidentLocate(incident)}
-                  onCardClick={() => handleIncidentDetails(incident)}
-                  isSelected={
-                    (selectedIncidentForMap && selectedIncidentForMap._id === incident._id) || 
-                    (!selectedIncidentForMap && selectedIncidentForDetails && selectedIncidentForDetails._id === incident._id)
-                  }
+                  isSelected={selectedIncidentForMap && selectedIncidentForMap._id === incident._id}
                   ref={isLast ? lastElementRef : null}
                 />
               );
@@ -366,23 +338,6 @@ function Feed() {
         onClose={closeMiniMap}
         incident={selectedIncidentForMap}
       />
-
-      {/* Incident Details Modal */}
-      <Modal
-        isOpen={showIncidentDetails}
-        onClose={closeIncidentDetails}
-        title="Incident Details"
-        size="default"
-      >
-        {selectedIncidentForDetails && (
-          <div className="incident-details-modal-wrapper">
-            <IncidentDetailsModal
-              incident={selectedIncidentForDetails}
-              onClose={closeIncidentDetails}
-            />
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }

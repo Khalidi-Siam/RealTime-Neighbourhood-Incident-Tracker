@@ -2,8 +2,7 @@ import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import MapSidebar from '../components/MapSidebar.jsx';
 import MapView from '../components/MapView.jsx';
-import IncidentDetailsModal from '../components/IncidentDetailsModal.jsx';
-import Modal from '../components/Modal.jsx';
+import IncidentModal from '../components/IncidentModal.jsx';
 
 function Home() {
   const { currentUser } = useContext(AuthContext);
@@ -52,27 +51,14 @@ function Home() {
         onUserLocationRequest={handleUserLocationRequest}
       />
       
-      <Modal
+      <IncidentModal
+        incident={selectedIncident}
         isOpen={!!selectedIncident}
         onClose={() => {
           setSelectedIncident(null);
-          // Don't clear selectedIncidentForDetails here - keep the selection persistent
         }}
-        title="Incident Details"
-        size="default"
-      >
-        {selectedIncident && (
-          <div className="incident-details-modal-wrapper">
-            <IncidentDetailsModal
-              incident={selectedIncident}
-              onClose={() => {
-                setSelectedIncident(null);
-                // Don't clear selectedIncidentForDetails here - keep the selection persistent
-              }}
-            />
-          </div>
-        )}
-      </Modal>
+        initialFocus="details"
+      />
     </div>
   );
 }
