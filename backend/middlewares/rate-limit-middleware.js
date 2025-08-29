@@ -16,6 +16,8 @@ const generalLimiter = rateLimit({
     
     // Skip endpoints that have their own specific rate limiting
     const skipPaths = [
+      '/login',          // Authentication endpoints
+      '/register',       // Authentication endpoints
       '/vote',           // Voting endpoints
       '/report-false',   // False report endpoints
       '/comments'        // Comment creation endpoints
@@ -29,9 +31,9 @@ const generalLimiter = rateLimit({
 // Strict rate limiter for authentication endpoints (login, register)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 authentication attempts per windowMs
+  max: 5, // Limit each email to 5 authentication attempts per windowMs
   message: {
-    message: 'Too many authentication attempts from this IP, please try again after 15 minutes.',
+    message: 'Too many authentication attempts for this email, please try again after 15 minutes.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -39,6 +41,16 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true,
   // Use a sliding window counter for more accurate rate limiting
   skipFailedRequests: false,
+  // Use email-based tracking for proper user isolation
+  keyGenerator: (req) => {
+    // For login/register, use email address for tracking
+    const email = req.body?.email;
+    if (email) {
+      return `auth_${email.toLowerCase()}`;
+    }
+    // Fallback to IP if no email provided (shouldn't happen for valid requests)
+    return `auth_ip_${req.ip}`;
+  },
 });
 
 // Moderate rate limiter for content creation endpoints
