@@ -11,11 +11,13 @@ const { authenticateToken, authorizeRoles } = require('../middlewares/auth-middl
 const { createFalseReportSchema, falseReportParamsSchema } = require('../validators/false-report-validator');
 const validate = require('../middlewares/validate-middleware');
 const validateParams = require('../middlewares/validate-params-middleware');
+const { falseReportLimiter } = require('../middlewares/rate-limit-middleware');
 
-// Report an incident as false (requires authentication)
+// Report an incident as false (requires authentication) - with strict rate limiting
 router.post('/:incidentId/report-false', 
     validateParams(falseReportParamsSchema), 
     authenticateToken,
+    falseReportLimiter,
     validate(createFalseReportSchema), 
     createFalseReport
 );

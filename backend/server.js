@@ -8,6 +8,7 @@ const server = http.createServer(app);
 // const path = require('path');
 const connectDB = require('./models/db');
 const errorMiddleware = require('./middlewares/error-middleware');
+const { generalLimiter } = require('./middlewares/rate-limit-middleware');
 
 const PORT = process.env.PORT || 3000;
 const FRONTEND_URL = "https://realtime-neighbourhood-incident-tracker-6hfe.onrender.com";
@@ -66,6 +67,10 @@ io.on('connection', (socket) => {
 });
 
 app.use(express.json());
+
+// Apply general rate limiting to all API routes
+app.use('/api', generalLimiter);
+
 app.use('/api/auth', require('./routes/auth-route'));
 app.use('/api/incidents', require('./routes/incident-route'));
 app.use('/api/incidents', require('./routes/incident-comment-route'));

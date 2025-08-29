@@ -9,11 +9,12 @@ const { authenticateToken } = require('../middlewares/auth-middleware');
 const { updateCommentSchema, commentParamsSchema, createReplySchema, replyParamsSchema } = require('../validators/comment-validator');
 const validate = require('../middlewares/validate-middleware');
 const validateParams = require('../middlewares/validate-params-middleware');
+const { createContentLimiter } = require('../middlewares/rate-limit-middleware');
 
-// All comment routes require authentication
-router.put('/:id', validateParams(commentParamsSchema), authenticateToken, validate(updateCommentSchema), updateComment);
+// All comment routes require authentication - with rate limiting for content creation
+router.put('/:id', validateParams(commentParamsSchema), authenticateToken, createContentLimiter, validate(updateCommentSchema), updateComment);
 router.delete('/:id', validateParams(commentParamsSchema), authenticateToken, deleteComment);
-router.post('/:commentId/reply', validateParams(replyParamsSchema), authenticateToken, validate(createReplySchema), createReply);
+router.post('/:commentId/reply', validateParams(replyParamsSchema), authenticateToken, createContentLimiter, validate(createReplySchema), createReply);
 
 module.exports = router;
 

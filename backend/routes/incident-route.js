@@ -6,6 +6,7 @@ const { authenticateToken, authorizeRoles, optionalAuthentication } = require('.
 const { createIncidentSchema, getIncidentParamsSchema } = require('../validators/incident-validator');
 const validate = require('../middlewares/validate-middleware');
 const validateParams = require('../middlewares/validate-params-middleware');
+const { createContentLimiter } = require('../middlewares/rate-limit-middleware');
 // const multer = require('multer');
 // const path = require('path');
 
@@ -20,7 +21,7 @@ const validateParams = require('../middlewares/validate-params-middleware');
 // });
 // const upload = multer({ storage });
 
-router.post('/submit', authenticateToken, validate(createIncidentSchema), createIncident);
+router.post('/submit', authenticateToken, createContentLimiter, validate(createIncidentSchema), createIncident);
 router.get('/', optionalAuthentication, getAllIncidents);
 router.get('/:id', optionalAuthentication, validateParams(getIncidentParamsSchema), getIncidentById);
 router.delete('/:id', authenticateToken, validateParams(getIncidentParamsSchema), deleteIncident);

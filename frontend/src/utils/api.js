@@ -86,6 +86,38 @@ const handleResponse = async (response) => {
       errorData = { message: 'Unknown error' };
     }
     
+    // Handle rate limiting (429) responses specifically
+    if (response.status === 429) {
+      const resetTime = response.headers.get('ratelimit-reset');
+      const remaining = response.headers.get('ratelimit-remaining');
+      const limit = response.headers.get('ratelimit-limit');
+      
+      let rateLimitMessage = errorData.message || 'Too many requests. Please try again later.';
+      
+      // Add helpful timing information if available
+      if (resetTime) {
+        const resetDate = new Date(parseInt(resetTime) * 1000);
+        const now = new Date();
+        const minutesUntilReset = Math.ceil((resetDate - now) / (1000 * 60));
+        
+        if (minutesUntilReset > 0) {
+          rateLimitMessage += ` You can try again in ${minutesUntilReset} minute${minutesUntilReset !== 1 ? 's' : ''}.`;
+        } else {
+          rateLimitMessage += ' You can try again now.';
+        }
+      }
+      
+      // Create a special error for rate limiting that components can handle
+      const rateLimitError = new Error(rateLimitMessage);
+      rateLimitError.isRateLimit = true;
+      rateLimitError.status = 429;
+      rateLimitError.retryAfter = resetTime;
+      rateLimitError.remaining = remaining;
+      rateLimitError.limit = limit;
+      
+      throw rateLimitError;
+    }
+    
     // Handle validation errors that come as an array of objects
     let errorMessage = 'Request failed';
     if (errorData.message) {

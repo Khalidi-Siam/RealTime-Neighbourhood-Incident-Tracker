@@ -1,0 +1,139 @@
+/* Rate Limit Notification Styles */
+.rate-limit-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  max-width: 400px;
+  animation: slideInRight 0.3s ease-out;
+}
+
+.rate-limit-notification__content {
+  background: var(--color-surface, #fff);
+  border: 2px solid #f39c12;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  position: relative;
+}
+
+.rate-limit-notification__icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.rate-limit-notification__message {
+  flex: 1;
+  min-width: 0;
+}
+
+.rate-limit-notification__message h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text, #333);
+}
+
+.rate-limit-notification__message p {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-text-secondary, #666);
+}
+
+.rate-limit-notification__retry {
+  font-weight: 500;
+  color: #f39c12 !important;
+}
+
+.rate-limit-notification__details {
+  font-size: 12px !important;
+  opacity: 0.8;
+}
+
+.rate-limit-notification__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--color-text-secondary, #666);
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.rate-limit-notification__close:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: var(--color-text, #333);
+}
+
+/* Dark theme support */
+[data-theme=\"dark\"] .rate-limit-notification__content {
+  background: var(--color-surface-dark, #2a2a2a);
+  border-color: #e67e22;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme=\"dark\"] .rate-limit-notification__message h4 {
+  color: var(--color-text-dark, #e0e0e0);
+}
+
+[data-theme=\"dark\"] .rate-limit-notification__message p {
+  color: var(--color-text-secondary-dark, #b0b0b0);
+}
+
+[data-theme=\"dark\"] .rate-limit-notification__retry {
+  color: #e67e22 !important;
+}
+
+[data-theme=\"dark\"] .rate-limit-notification__close {
+  color: var(--color-text-secondary-dark, #b0b0b0);
+}
+
+[data-theme=\"dark\"] .rate-limit-notification__close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-dark, #e0e0e0);
+}
+
+/* Animation */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .rate-limit-notification {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+  
+  .rate-limit-notification__content {
+    padding: 12px;
+  }
+  
+  .rate-limit-notification__message h4 {
+    font-size: 14px;
+  }
+  
+  .rate-limit-notification__message p {
+    font-size: 13px;
+  }
+}
