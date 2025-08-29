@@ -13,6 +13,7 @@ function Profile() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
@@ -34,9 +35,9 @@ function Profile() {
     }
   }, [token]);
 
-  const handleUpdateProfile = async (updateData) => {
+  const handleUpdateProfile = async (updateData, profilePicture = null, removeProfilePicture = false) => {
     try {
-      const data = await authAPI.updateProfile(updateData);
+      const data = await authAPI.updateProfile(updateData, profilePicture, removeProfilePicture);
       setProfileData(data.user);
       setSuccessMessage('Profile updated successfully!');
       setShowSuccessModal(true);
@@ -117,12 +118,23 @@ function Profile() {
           <div className="profile__card">
             <div className="profile__avatar-section">
               <div className="profile__avatar">
-                <div className="profile__avatar-icon">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                  </svg>
-                </div>
+                {profileData.profilePicture ? (
+                  <img 
+                    src={profileData.profilePicture} 
+                    alt={`${profileData.username}'s profile`}
+                    className="profile__avatar-img"
+                    onClick={() => setShowImageModal(true)}
+                    style={{ cursor: 'pointer' }}
+                    title="Click to view larger image"
+                  />
+                ) : (
+                  <div className="profile__avatar-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                  </div>
+                )}
               </div>
               <div className="profile__avatar-info">
                 <h2 className="profile__name">{profileData.username}</h2>
@@ -225,6 +237,32 @@ function Profile() {
           message={successMessage}
           type="success"
         />
+
+        {/* Profile Picture Modal */}
+        {profileData.profilePicture && (
+          <div 
+            className={`image-modal ${showImageModal ? 'image-modal--open' : ''}`}
+            onClick={() => setShowImageModal(false)}
+          >
+            <div className="image-modal__content" onClick={(e) => e.stopPropagation()}>
+              <button 
+                className="image-modal__close"
+                onClick={() => setShowImageModal(false)}
+                aria-label="Close image"
+              >
+                ×
+              </button>
+              <img 
+                src={profileData.profilePicture}
+                alt={`${profileData.username}'s profile picture`}
+                className="image-modal__img"
+              />
+              <div className="image-modal__caption">
+                {profileData.username}'s Profile Picture
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

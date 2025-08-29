@@ -170,12 +170,40 @@ export const authAPI = {
   },
 
   // Update user profile
-  updateProfile: async (profileData) => {
+  updateProfile: async (profileData, profilePicture = null, removeProfilePicture = false) => {
     const baseUrl = await getApiBaseUrl();
+    
+    // Create FormData for multipart/form-data request (supports file upload)
+    const formData = new FormData();
+    
+    // Add text fields to FormData
+    Object.keys(profileData).forEach(key => {
+      if (profileData[key] !== undefined && profileData[key] !== null) {
+        formData.append(key, profileData[key]);
+      }
+    });
+    
+    // Add profile picture if provided
+    if (profilePicture) {
+      formData.append('profilePicture', profilePicture);
+    }
+    
+    // Add remove profile picture flag if requested
+    if (removeProfilePicture) {
+      formData.append('removeProfilePicture', 'true');
+    }
+    
+    // Get auth headers without Content-Type (browser will set it for FormData)
+    const headers = {};
+    const token = localStorage.getItem('token');
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${baseUrl}/auth/profile`, {
       method: 'PUT',
-      headers: getAuthHeaders(true),
-      body: JSON.stringify(profileData),
+      headers: headers,
+      body: formData,
     });
     return handleResponse(response);
   },

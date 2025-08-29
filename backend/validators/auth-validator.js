@@ -51,8 +51,43 @@ const updateProfileSchema = z.object({
     path: ["currentPassword"]
 });
 
+// Schema for profile updates with file upload (multipart/form-data)
+const updateProfileWithImageSchema = z.object({
+    username: z
+        .string().trim()
+        .min(3, {message: 'Username must be at least 3 characters long'})
+        .max(20, {message: 'Username must not exceed 20 characters'})
+        .optional(),
+    email: z.email('Invalid email format').optional(),
+    phone: z
+        .string().trim()
+        .min(11, {message: 'Phone number must be 11 characters long'})
+        .max(11, {message: 'Phone number must be 11 characters long'})
+        .optional(),
+    currentPassword: z.string().trim().optional(),
+    newPassword: z
+        .string().trim()
+        .min(6, {message: 'Password must be at least 6 characters long'})
+        .max(20, {message: 'Password must not exceed 20 characters'})
+        .optional(),
+    removeProfilePicture: z
+        .string()
+        .optional()
+        .transform((val) => val === 'true')
+}).refine((data) => {
+    // If newPassword is provided, currentPassword must also be provided
+    if (data.newPassword && !data.currentPassword) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Current password is required when changing password",
+    path: ["currentPassword"]
+});
+
 module.exports = {
     registerSchema,
     loginSchema,
-    updateProfileSchema
+    updateProfileSchema,
+    updateProfileWithImageSchema
 };

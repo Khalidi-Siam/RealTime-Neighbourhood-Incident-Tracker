@@ -6,6 +6,7 @@ const IncidentReport = require('../models/false-report-model');
 const Notification = require('../models/notification-model');
 const bcrypt = require('bcryptjs');
 const { generateToken } = require('../utils/jwt-utils');
+const { uploadImageFromBuffer, deleteImage } = require('../utils/cloudinary-config');
 
 const register = async (req, res) => {
     try {
@@ -85,7 +86,8 @@ const getProfile = async (req, res) => {
                 username: req.user.username,
                 email: req.user.email,
                 phone: req.user.phone,
-                role: req.user.role
+                role: req.user.role,
+                profilePicture: req.user.profilePicture?.url || null
             }
         });
     } catch (error) {
@@ -163,7 +165,8 @@ const getUsersCount = async (req, res) => {
 const updateProfile = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { username, email, phone, currentPassword, newPassword } = req.body;
+        const { username, email, phone, currentPassword, newPassword, removeProfilePicture } = req.body;
+        const profilePictureFile = req.file;
 
         // Find the current user
         const user = await User.findById(userId);
@@ -204,10 +207,53 @@ const updateProfile = async (req, res) => {
             user.password = hashedNewPassword;
         }
 
+        // Handle profile picture changes
+        let profilePictureData = user.profilePicture;
+
+        // Remove profile picture if requested
+        if (removeProfilePicture === true || removeProfilePicture === 'true') {
+            if (user.profilePicture && user.profilePicture.publicId) {
+                try {
+                    await deleteImage(user.profilePicture.publicId);
+                } catch (error) {
+                    console.error('Error deleting old profile picture:', error);
+                    // Continue with profile update even if image deletion fails
+                }
+            }
+            profilePictureData = { url: null, publicId: null };
+        }
+        // Upload new profile picture if provided
+        else if (profilePictureFile) {
+            try {
+                // Delete old profile picture if exists
+                if (user.profilePicture && user.profilePicture.publicId) {
+                    try {
+                        await deleteImage(user.profilePicture.publicId);
+                    } catch (error) {
+                        console.error('Error deleting old profile picture:', error);
+                        // Continue with new upload even if old deletion fails
+                    }
+                }
+
+                // Upload new profile picture
+                const uploadResult = await uploadImageFromBuffer(profilePictureFile.buffer);
+                profilePictureData = {
+                    url: uploadResult.url,
+                    publicId: uploadResult.publicId
+                };
+            } catch (error) {
+                console.error('Error uploading profile picture:', error);
+                return res.status(500).json({ message: 'Failed to upload profile picture' });
+            }
+        }
+
         // Update other fields
         if (username) user.username = username;
         if (email) user.email = email;
         if (phone) user.phone = phone;
+        
+        // Update profile picture
+        user.profilePicture = profilePictureData;
 
         // Save the updated user
         await user.save();
@@ -219,7 +265,8 @@ const updateProfile = async (req, res) => {
                 username: user.username,
                 email: user.email,
                 phone: user.phone,
-                role: user.role
+                role: user.role,
+                profilePicture: user.profilePicture?.url || null
             }
         });
 
@@ -242,6 +289,16 @@ const deleteProfile = async (req, res) => {
         // Don't allow admin users to delete their profiles through this endpoint
         if (user.role === 'admin') {
             return res.status(403).json({ message: 'Admin accounts cannot be deleted through this endpoint' });
+        }
+
+        // Delete profile picture from Cloudinary if exists
+        if (user.profilePicture && user.profilePicture.publicId) {
+            try {
+                await deleteImage(user.profilePicture.publicId);
+            } catch (error) {
+                console.error('Error deleting profile picture from Cloudinary:', error);
+                // Continue with deletion even if profile picture deletion fails
+            }
         }
 
         // Start deletion process - Remove all related data
@@ -293,6 +350,16 @@ const adminDeleteUser = async (req, res) => {
         // Prevent admin from deleting other admin users
         if (userToDelete.role === 'admin') {
             return res.status(403).json({ message: 'Cannot delete other admin accounts' });
+        }
+
+        // Delete profile picture from Cloudinary if exists
+        if (userToDelete.profilePicture && userToDelete.profilePicture.publicId) {
+            try {
+                await deleteImage(userToDelete.profilePicture.publicId);
+            } catch (error) {
+                console.error('Error deleting profile picture from Cloudinary:', error);
+                // Continue with deletion even if profile picture deletion fails
+            }
         }
 
         // Start deletion process - Remove all related data (same as user self-delete)

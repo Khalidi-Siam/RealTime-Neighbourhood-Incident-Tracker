@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Modal from './Modal';
 
 function EditProfileModal({ isOpen, onClose, currentUser, onUpdate }) {
@@ -13,6 +13,12 @@ function EditProfileModal({ isOpen, onClose, currentUser, onUpdate }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPasswordFields, setShowPasswordFields] = useState(false);
+  
+  // Profile picture states
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState(currentUser?.profilePicture || null);
+  const [removeProfilePicture, setRemoveProfilePicture] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -22,6 +28,48 @@ function EditProfileModal({ isOpen, onClose, currentUser, onUpdate }) {
     }));
     // Clear error when user starts typing
     if (error) setError('');
+  };
+
+  // Handle profile picture file selection
+  const handleProfilePictureChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        setError('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+        return;
+      }
+      
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image file size must be less than 5MB');
+        return;
+      }
+      
+      setProfilePicture(file);
+      setRemoveProfilePicture(false);
+      
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setProfilePicturePreview(previewUrl);
+      setError('');
+    }
+  };
+
+  // Handle remove profile picture
+  const handleRemoveProfilePicture = () => {
+    setProfilePicture(null);
+    setRemoveProfilePicture(true);
+    setProfilePicturePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Handle click on profile picture area
+  const handleProfilePictureClick = () => {
+    fileInputRef.current?.click();
   };
 
   const handleSubmit = async (e) => {
@@ -56,7 +104,8 @@ function EditProfileModal({ isOpen, onClose, currentUser, onUpdate }) {
         updateData.newPassword = formData.newPassword;
       }
 
-      await onUpdate(updateData);
+      // Call update function with profile picture data
+      await onUpdate(updateData, profilePicture, removeProfilePicture);
       onClose();
     } catch (err) {
       setError(err.message);
@@ -66,6 +115,11 @@ function EditProfileModal({ isOpen, onClose, currentUser, onUpdate }) {
   };
 
   const handleClose = () => {
+    // Clean up preview URL if it was created from a file
+    if (profilePicturePreview && profilePicturePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(profilePicturePreview);
+    }
+    
     setFormData({
       username: currentUser?.username || '',
       email: currentUser?.email || '',
@@ -76,6 +130,15 @@ function EditProfileModal({ isOpen, onClose, currentUser, onUpdate }) {
     });
     setShowPasswordFields(false);
     setError('');
+    
+    // Reset profile picture states
+    setProfilePicture(null);
+    setProfilePicturePreview(currentUser?.profilePicture || null);
+    setRemoveProfilePicture(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    
     onClose();
   };
 
@@ -88,6 +151,59 @@ function EditProfileModal({ isOpen, onClose, currentUser, onUpdate }) {
             {error}
           </div>
         )}
+
+        {/* Profile Picture Upload Section */}
+        <div className="form-group profile-picture-section">
+          <label>Profile Picture</label>
+          <div className="profile-picture-container">
+            <div 
+              className="profile-picture-preview" 
+              onClick={handleProfilePictureClick}
+              style={{ cursor: 'pointer' }}
+            >
+              {profilePicturePreview ? (
+                <img 
+                  src={profilePicturePreview} 
+                  alt="Profile preview" 
+                  className="profile-picture-img"
+                />
+              ) : (
+                <div className="profile-picture-placeholder">
+                  <span>📷</span>
+                  <p>Click to upload</p>
+                </div>
+              )}
+            </div>
+            
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleProfilePictureChange}
+              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+              style={{ display: 'none' }}
+            />
+            
+            <div className="profile-picture-actions">
+              <button
+                type="button"
+                className="btn btn--secondary btn--small"
+                onClick={handleProfilePictureClick}
+              >
+                {profilePicturePreview ? 'Change Photo' : 'Upload Photo'}
+              </button>
+              
+              {(profilePicturePreview || currentUser?.profilePicture) && (
+                <button
+                  type="button"
+                  className="btn btn--danger btn--small"
+                  onClick={handleRemoveProfilePicture}
+                >
+                  Remove Photo
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className="form-group">
           <label htmlFor="username">Username</label>
