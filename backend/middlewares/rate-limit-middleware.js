@@ -49,7 +49,7 @@ const authLimiter = rateLimit({
       return `auth_${email.toLowerCase()}`;
     }
     // Fallback to IP if no email provided (shouldn't happen for valid requests)
-    return `auth_ip_${req.ip}`;
+    return `auth_ip_${ipKeyGenerator(req, res)}`;
   },
 });
 
@@ -66,10 +66,10 @@ const createContentLimiter = rateLimit({
   keyGenerator: (req) => {
     // If user is authenticated, use IP + user ID for more precise limiting
     if (req.user && req.user.id) {
-      return `${req.ip}_user_${req.user.id}`;
+      return `${ipKeyGenerator(req, res)}_user_${req.user.id}`;
     }
     // Fallback to IP only for unauthenticated requests
-    return req.ip;
+    return ipKeyGenerator(req, res);
   },
 });
 
@@ -86,10 +86,10 @@ const actionLimiter = rateLimit({
   keyGenerator: (req) => {
     // If user is authenticated, use IP + user ID for more precise limiting
     if (req.user && req.user.id) {
-      return `${req.ip}_user_${req.user.id}`;
+      return `${ipKeyGenerator(req, res)}_user_${req.user.id}`;
     }
     // Fallback to IP only for unauthenticated requests
-    return req.ip;
+    return ipKeyGenerator(req, res);
   },
 });
 
@@ -106,10 +106,10 @@ const falseReportLimiter = rateLimit({
   keyGenerator: (req) => {
     // If user is authenticated, use IP + user ID for more precise limiting
     if (req.user && req.user.id) {
-      return `${req.ip}_user_${req.user.id}`;
+      return `${ipKeyGenerator(req, res)}_user_${req.user.id}`;
     }
     // Fallback to IP only for unauthenticated requests
-    return req.ip;
+    return ipKeyGenerator(req, res);
   },
 });
 
