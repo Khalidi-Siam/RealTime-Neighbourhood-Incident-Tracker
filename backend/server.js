@@ -33,6 +33,11 @@ const io = socketIo(server, {
 // Make io accessible to other modules
 app.set('io', io);
 
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
