@@ -1,5 +1,11 @@
 const rateLimit = require('express-rate-limit');
 
+// Function to generate IP-based key for rate limiting
+const ipKeyGenerator = (req) => {
+  const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || req.ip;
+  return ip ? ip.split(',')[0].trim() : 'unknown';
+};
+
 // General rate limiter for all API endpoints
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -16,11 +22,12 @@ const generalLimiter = rateLimit({
     
     // Skip endpoints that have their own specific rate limiting
     const skipPaths = [
-      '/login',          // Authentication endpoints
-      '/register',       // Authentication endpoints
-      '/vote',           // Voting endpoints
-      '/report-false',   // False report endpoints
-      '/comments'        // Comment creation endpoints
+      '/auth/login',          // Authentication endpoints
+      '/auth/register',       // Authentication endpoints
+      '/incidents/submit',    // Incident creation (has createContentLimiter)
+      '/vote',               // Voting endpoints
+      '/report-false',       // False report endpoints
+      '/comment'             // Comment creation endpoints
     ];
     
     // Check if the request path contains any of the skip patterns
@@ -49,7 +56,7 @@ const authLimiter = rateLimit({
       return `auth_${email.toLowerCase()}`;
     }
     // Fallback to IP if no email provided (shouldn't happen for valid requests)
-    return `auth_ip_${ipKeyGenerator(req, res)}`;
+    return `auth_ip_${ipKeyGenerator(req)}`;
   },
 });
 
@@ -66,10 +73,10 @@ const createContentLimiter = rateLimit({
   keyGenerator: (req) => {
     // If user is authenticated, use IP + user ID for more precise limiting
     if (req.user && req.user.id) {
-      return `${ipKeyGenerator(req, res)}_user_${req.user.id}`;
+      return `${ipKeyGenerator(req)}_user_${req.user.id}`;
     }
     // Fallback to IP only for unauthenticated requests
-    return ipKeyGenerator(req, res);
+    return ipKeyGenerator(req);
   },
 });
 
@@ -86,10 +93,10 @@ const actionLimiter = rateLimit({
   keyGenerator: (req) => {
     // If user is authenticated, use IP + user ID for more precise limiting
     if (req.user && req.user.id) {
-      return `${ipKeyGenerator(req, res)}_user_${req.user.id}`;
+      return `${ipKeyGenerator(req)}_user_${req.user.id}`;
     }
     // Fallback to IP only for unauthenticated requests
-    return ipKeyGenerator(req, res);
+    return ipKeyGenerator(req);
   },
 });
 
@@ -106,10 +113,10 @@ const falseReportLimiter = rateLimit({
   keyGenerator: (req) => {
     // If user is authenticated, use IP + user ID for more precise limiting
     if (req.user && req.user.id) {
-      return `${ipKeyGenerator(req, res)}_user_${req.user.id}`;
+      return `${ipKeyGenerator(req)}_user_${req.user.id}`;
     }
     // Fallback to IP only for unauthenticated requests
-    return ipKeyGenerator(req, res);
+    return ipKeyGenerator(req);
   },
 });
 
