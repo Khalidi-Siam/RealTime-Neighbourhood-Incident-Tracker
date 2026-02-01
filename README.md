@@ -2,7 +2,6 @@
 
 A full-stack web application that enables communities to report, track, and manage local incidents in real-time. Built with React.js and Node.js, featuring interactive maps, real-time updates via WebSockets, and a comprehensive admin dashboard.
 
-![License](https://img.shields.io/badge/license-ISC-blue.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)
 ![React](https://img.shields.io/badge/react-19.1.1-61dafb)
 
@@ -16,8 +15,7 @@ A full-stack web application that enables communities to report, track, and mana
 - [API Endpoints](#-api-endpoints)
 - [Real-Time Features](#-real-time-features)
 - [Screenshots](#-screenshots)
-- [Contributing](#-contributing)
-- [License](#-license)
+
 
 ## ✨ Features
 
